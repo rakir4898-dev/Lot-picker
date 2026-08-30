@@ -377,11 +377,27 @@
                 <label for="max-entries-input">Max eligible entries for winner lot</label>
                 <input type="number" id="max-entries-input" min="1" step="1">
 
+                <label for="chit-amount-input">Chit amount</label>
+                <input type="number" id="chit-amount-input" min="1" step="100">
+
                 <label for="participants-input">Participants</label>
                 <textarea id="participants-input" placeholder="One participant per line. Optional format: Name | Random ID | Contact"></textarea>
 
                 <button onclick="saveMonthlyParticipants()">Save Monthly Participants</button>
                 <p class="admin-message" id="admin-message"></p>
+
+                <div style="margin-top: 18px;">
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Month Yes Participants</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Random ID</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-yes-table-body"></tbody>
+                    </table>
+                </div>
             </div>
 
             <div class="participation-panel" id="participation-panel">
@@ -411,7 +427,7 @@
 
             <div style="margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted); margin: 0;">Eligible Winners</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted); margin: 0;">Super Participation Eligible Winners</h2>
                     <p class="eligible-count" id="eligible-count-text">0 eligible</p>
                 </div>
                 <table>
@@ -501,6 +517,7 @@
                 month: "2026-09",
                 entry_day: 1,
                 max_entries: 6,
+                chit_amount: 15600,
                 participants: []
             },
             participation_by_month: {},
@@ -545,6 +562,7 @@
             }
 
             groupData.monthly_lot.month = groupData.monthly_lot.month || getCurrentMonthValue();
+            groupData.monthly_lot.chit_amount = Number(groupData.monthly_lot.chit_amount) || getChitAmount(groupData.monthly_lot.month);
 
             if (!Array.isArray(groupData.monthly_lot.participants) || groupData.monthly_lot.participants.length === 0) {
                 groupData.monthly_lot.participants = getDefaultParticipants();
@@ -564,6 +582,10 @@
         }
 
         function getChitAmount(dateValue = groupData.chit_last_picked_at || new Date()) {
+            if (groupData.monthly_lot?.chit_amount) {
+                return Number(groupData.monthly_lot.chit_amount);
+            }
+
             const date = new Date(dateValue);
             const monthNumber = Number.isNaN(date.getTime()) ? 1 : date.getMonth() + 1;
             return BASE_CHIT_AMOUNT + ((monthNumber - 1) * CHIT_AMOUNT_INCREMENT);
@@ -763,7 +785,9 @@
             const chitAmount = getChitAmount(groupData.chit_last_picked_at || new Date());
             const totalAmount = getChitTotalAmount(groupData.chit_last_picked_at || new Date());
 
-            document.getElementById('chit-winner-name').textContent = chitWinner ? chitWinner.name : 'Ready to draw';
+            document.getElementById('chit-winner-name').textContent = chitWinner
+                ? `${chitWinner.name} - ${formatMoney(chitAmount)} / ${formatMoney(totalAmount)}`
+                : 'Ready to draw';
             document.getElementById('chit-winner-details').textContent = chitWinner && groupData.chit_last_picked_at
                 ? `Picked ${formatDate(new Date(groupData.chit_last_picked_at))}`
                 : 'Vijay selects the chit winner.';
@@ -775,6 +799,25 @@
             document.getElementById('super-winner-details').textContent = superWinner && groupData.super_last_picked_at
                 ? `Picked ${formatDate(new Date(groupData.super_last_picked_at))}`
                 : 'First super winner is picked by Vijay. After that, the previous super winner picks next.';
+        }
+
+        function renderAdminYesParticipants() {
+            const tableBody = document.getElementById('admin-yes-table-body');
+            const yesParticipants = getConfirmedParticipants();
+
+            tableBody.innerHTML = '';
+            if (yesParticipants.length === 0) {
+                const tableRow = document.createElement('tr');
+                tableRow.innerHTML = '<td colspan="2">No users selected yes for this month yet.</td>';
+                tableBody.appendChild(tableRow);
+                return;
+            }
+
+            yesParticipants.forEach(participant => {
+                const tableRow = document.createElement('tr');
+                tableRow.innerHTML = `<td>${participant.name}</td><td>${participant.random_number}</td>`;
+                tableBody.appendChild(tableRow);
+            });
         }
 
         function renderAdminPanel() {
@@ -792,10 +835,12 @@
             adminPanel.style.display = 'block';
             document.getElementById('lot-month-input').value = groupData.monthly_lot.month;
             document.getElementById('max-entries-input').value = groupData.monthly_lot.max_entries;
+            document.getElementById('chit-amount-input').value = getChitAmount(groupData.monthly_lot.month);
             document.getElementById('participants-input').value = participantLines.join('\n');
             document.getElementById('admin-day-note').textContent = today.getDate() === groupData.monthly_lot.entry_day
                 ? 'Today is day 1. Enter this month\'s participants now.'
                 : `Monthly participants are expected on day ${groupData.monthly_lot.entry_day}.`;
+            renderAdminYesParticipants();
         }
 
         function renderParticipationPanel() {
@@ -853,7 +898,7 @@
             const winnerState = getWinnerState(type);
             const winner = groupData[winnerState.winnerKey];
             const poolCandidates = getWinnerPoolCandidates(type);
-            const label = type === 'super' ? 'Super Winner' : 'Chit Winner';
+            const label = type === 'super' ? 'Super Participation Winner' : 'Chit Winner';
 
             if (nextPickDate && new Date() < nextPickDate) {
                 button.disabled = true;
@@ -871,7 +916,7 @@
 
             if (poolCandidates.length === 0) {
                 button.disabled = true;
-                button.textContent = `No eligible ${label.toLowerCase()}s`;
+                button.textContent = `No eligible ${label.toLowerCase()}`;
                 return;
             }
 
@@ -883,7 +928,7 @@
             normalizeMonthlyLot();
             const eligibleParticipants = getEligibleParticipants();
             groupData.remaining_pool_count = eligibleParticipants.length;
-            document.getElementById('status-text').textContent = `Eligible surprise winners: ${eligibleParticipants.length}/${groupData.monthly_lot.participants.length}`;
+            document.getElementById('status-text').textContent = `Eligible super participation winners: ${eligibleParticipants.length}/${groupData.monthly_lot.participants.length}`;
             renderEligibleWinners();
             renderWinnerCards();
             renderChitHistory();
@@ -1010,11 +1055,13 @@
 
             const participants = participantLines.map(parseParticipantLine);
             const requestedMaxEntries = Number(document.getElementById('max-entries-input').value) || participants.length;
+            const requestedChitAmount = Number(document.getElementById('chit-amount-input').value) || getChitAmount(groupData.monthly_lot.month);
 
             groupData.monthly_lot = {
                 month: document.getElementById('lot-month-input').value || groupData.monthly_lot.month,
                 entry_day: 1,
                 max_entries: Math.max(1, Math.min(requestedMaxEntries, participants.length)),
+                chit_amount: requestedChitAmount,
                 participants
             };
             groupData.billing_cycle = groupData.monthly_lot.month;
@@ -1026,7 +1073,7 @@
             renderWinnerState();
 
             adminMessage.style.color = 'var(--accent)';
-            adminMessage.textContent = `Saved ${participants.length} participants. ${groupData.monthly_lot.max_entries} are eligible for the lot.`;
+            adminMessage.textContent = `Saved ${participants.length} participants. ${groupData.monthly_lot.max_entries} are eligible. Chit amount is ${formatMoney(requestedChitAmount)}.`;
         }
 
         function updateUserName() {
