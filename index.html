@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lot Picker - Authentication</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Authentication Modal Overlay */
+        .auth-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .auth-modal-overlay.hidden {
+            display: none;
+        }
+
+        .auth-modal {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .auth-modal h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .auth-modal p {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+            padding: 10px;
+            background: #fadbd8;
+            border-radius: 4px;
+            border-left: 3px solid #e74c3c;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.3s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .success-message {
+            color: #27ae60;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+            padding: 10px;
+            background: #d5f4e6;
+            border-radius: 4px;
+            border-left: 3px solid #27ae60;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .form-group button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .form-group button:active {
+            transform: translateY(0);
+        }
+
+        /* Dashboard Container */
+        .dashboard {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 999;
+        }
+
+        .dashboard.show {
+            display: flex;
+        }
+
+        .dashboard-content {
+            text-align: center;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .dashboard-content h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-content p {
+            font-size: 20px;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+
+        .logout-btn {
+            padding: 12px 30px;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 480px) {
+            .auth-modal {
+                padding: 30px 20px;
+            }
+
+            .auth-modal h1 {
+                font-size: 20px;
+            }
+
+            .dashboard-content h2 {
+                font-size: 32px;
+            }
+
+            .dashboard-content p {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Authentication Modal Overlay -->
+    <div class="auth-modal-overlay" id="authModalOverlay">
+        <div class="auth-modal">
+            <h1>Welcome to Lot Picker</h1>
+            <p>Please authenticate to access the dashboard</p>
+            
+            <form id="authForm">
+                <div class="form-group">
+                    <label for="nameInput">Enter Your Name:</label>
+                    <input 
+                        type="text" 
+                        id="nameInput" 
+                        placeholder="e.g., Prabu, Megala, Vijay" 
+                        autocomplete="off"
+                    >
+                    <div class="error-message" id="errorMessage">
+                        Name not found in group roster. Try again.
+                    </div>
+                    <div class="success-message" id="successMessage">
+                        Authentication successful! Loading dashboard...
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit">Authenticate</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard Container -->
+    <div class="dashboard" id="dashboard">
+        <div class="dashboard-content">
+            <h2 id="welcomeMessage">Welcome!</h2>
+            <p>You have successfully authenticated</p>
+            <button class="logout-btn" id="logoutBtn">Log Out</button>
+        </div>
+    </div>
+
+    <script>
+        // Members roster array
+        const members = [
+            'Prabu',
+            'Megala',
+            'Vijay',
+            'Arjun',
+            'Deepa',
+            'Kumar',
+            'Sneha',
+            'Rohan'
+        ];
+
+        // DOM Elements
+        const authModalOverlay = document.getElementById('authModalOverlay');
+        const authForm = document.getElementById('authForm');
+        const nameInput = document.getElementById('nameInput');
+        const errorMessage = document.getElementById('errorMessage');
+        const successMessage = document.getElementById('successMessage');
+        const dashboard = document.getElementById('dashboard');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        /**
+         * Validates the user input against the members roster
+         * @param {string} input - User input name
+         * @returns {object} - {isValid: boolean, matchedName: string}
+         */
+        function validateName(input) {
+            const trimmedInput = input.trim().toLowerCase();
+            
+            if (!trimmedInput) {
+                return { isValid: false, matchedName: null };
+            }
+
+            // Find a member whose name contains the input (case-insensitive)
+            const match = members.find(member => 
+                member.toLowerCase().includes(trimmedInput)
+            );
+
+            return {
+                isValid: !!match,
+                matchedName: match || null
+            };
+        }
+
+        /**
+         * Handles successful authentication
+         * @param {string} name - Authenticated user's name
+         */
+        function authenticate(name) {
+            // Hide error message if shown
+            errorMessage.classList.remove('show');
+            
+            // Show success message
+            successMessage.classList.add('show');
+
+            // Simulate loading and then show dashboard
+            setTimeout(() => {
+                authModalOverlay.classList.add('hidden');
+                dashboard.classList.add('show');
+                welcomeMessage.textContent = `Welcome, ${name}!`;
+            }, 1000);
+        }
+
+        /**
+         * Handles failed authentication attempt
+         */
+        function showError() {
+            errorMessage.classList.add('show');
+            successMessage.classList.remove('show');
+            nameInput.focus();
+        }
+
+        /**
+         * Resets the authentication form for retry
+         */
+        function resetAuthForm() {
+            nameInput.value = '';
+            errorMessage.classList.remove('show');
+            successMessage.classList.remove('show');
+            nameInput.focus();
+            authModalOverlay.classList.remove('hidden');
+            dashboard.classList.remove('show');
+        }
+
+        // Event Listeners
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const input = nameInput.value;
+            const { isValid, matchedName } = validateName(input);
+
+            if (isValid) {
+                authenticate(matchedName);
+            } else {
+                showError();
+            }
+        });
+
+        // Support Enter key in the input field
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                authForm.dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // Logout functionality
+        logoutBtn.addEventListener('click', () => {
+            resetAuthForm();
+        });
+
+        // Focus on input field when page loads
+        window.addEventListener('load', () => {
+            nameInput.focus();
+        });
+    </script>
+</body>
+</html>
