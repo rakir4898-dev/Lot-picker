@@ -392,7 +392,6 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Random ID</th>
                             </tr>
                         </thead>
                         <tbody id="admin-yes-table-body"></tbody>
@@ -428,13 +427,12 @@
             <div style="margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
                     <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted); margin: 0;">Super Participation Eligible Winners</h2>
-                    <p class="eligible-count" id="eligible-count-text">0 eligible</p>
+                    <p class="eligible-count" id="eligible-count-text">Names only</p>
                 </div>
                 <table>
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Random ID</th>
                         </tr>
                     </thead>
                     <tbody id="eligible-table-body"></tbody>
@@ -502,17 +500,22 @@
                 { id: 5, name: "Megala", random_number: 8160, contact: "+91 99622 33995", role: "Current Admin" },
                 { id: 6, name: "Prabu", random_number: 5287, contact: "User / Member" }
             ],
-            current_winner: null,
+            current_winner: { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 },
             remaining_pool_count: 6,
-            history: [],
-            chit_winner: null,
-            chit_last_picked_at: null,
-            chit_history: [],
-            chit_winner_cycle: [],
+            history: [
+                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 }
+            ],
+            chit_winner: { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 },
+            chit_last_picked_at: "2026-09-01T07:46:31Z",
+            chit_history: [
+                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 }
+            ],
+            chit_winner_cycle: [1],
             super_winner: null,
             super_last_picked_at: null,
             super_history: [],
             super_winner_cycle: [],
+            super_last_chit_count: 0,
             monthly_lot: {
                 month: "2026-09",
                 entry_day: 1,
@@ -586,8 +589,9 @@
                 return Number(groupData.monthly_lot.chit_amount);
             }
 
+            const monthMatch = String(dateValue).match(/-(\d{2})/);
             const date = new Date(dateValue);
-            const monthNumber = Number.isNaN(date.getTime()) ? 1 : date.getMonth() + 1;
+            const monthNumber = monthMatch ? Number(monthMatch[1]) : Number.isNaN(date.getTime()) ? 1 : date.getMonth() + 1;
             return BASE_CHIT_AMOUNT + ((monthNumber - 1) * CHIT_AMOUNT_INCREMENT);
         }
 
@@ -688,6 +692,18 @@
             return isCurrentWinner(currentUser, 'super');
         }
 
+        function getNextSuperChitCount() {
+            const completedChits = groupData.chit_history.length;
+            return Math.max(6, Math.ceil((completedChits + 1) / 6) * 6);
+        }
+
+        function canPickSuperForCurrentChit() {
+            const completedChits = groupData.chit_history.length;
+            return completedChits > 0
+                && completedChits % 6 === 0
+                && groupData.super_last_chit_count !== completedChits;
+        }
+
         function addMonths(date, months) {
             const result = new Date(date);
             const originalDay = result.getDate();
@@ -763,18 +779,18 @@
             const countText = document.getElementById('eligible-count-text');
 
             tableBody.innerHTML = '';
-            countText.textContent = `${eligibleParticipants.length}/${groupData.monthly_lot.participants.length} eligible`;
+            countText.textContent = 'Names only';
 
             if (eligibleParticipants.length === 0) {
                 const tableRow = document.createElement('tr');
-                tableRow.innerHTML = '<td colspan="2">No confirmed participants yet.</td>';
+                tableRow.innerHTML = '<td>No confirmed participants yet.</td>';
                 tableBody.appendChild(tableRow);
                 return;
             }
 
             eligibleParticipants.forEach(participant => {
                 const tableRow = document.createElement('tr');
-                tableRow.innerHTML = `<td>${participant.name}</td><td>${participant.random_number}</td>`;
+                tableRow.innerHTML = `<td>${participant.name}</td>`;
                 tableBody.appendChild(tableRow);
             });
         }
@@ -808,14 +824,14 @@
             tableBody.innerHTML = '';
             if (yesParticipants.length === 0) {
                 const tableRow = document.createElement('tr');
-                tableRow.innerHTML = '<td colspan="2">No users selected yes for this month yet.</td>';
+                tableRow.innerHTML = '<td>No users selected yes for this month yet.</td>';
                 tableBody.appendChild(tableRow);
                 return;
             }
 
             yesParticipants.forEach(participant => {
                 const tableRow = document.createElement('tr');
-                tableRow.innerHTML = `<td>${participant.name}</td><td>${participant.random_number}</td>`;
+                tableRow.innerHTML = `<td>${participant.name}</td>`;
                 tableBody.appendChild(tableRow);
             });
         }
@@ -906,6 +922,12 @@
                 return;
             }
 
+            if (type === 'super' && !canPickSuperForCurrentChit()) {
+                button.disabled = true;
+                button.textContent = `Super pick at chit ${getNextSuperChitCount()}`;
+                return;
+            }
+
             if (!canCurrentUserPick(type)) {
                 button.disabled = true;
                 button.textContent = type === 'chit'
@@ -928,7 +950,7 @@
             normalizeMonthlyLot();
             const eligibleParticipants = getEligibleParticipants();
             groupData.remaining_pool_count = eligibleParticipants.length;
-            document.getElementById('status-text').textContent = `Eligible super participation winners: ${eligibleParticipants.length}/${groupData.monthly_lot.participants.length}`;
+            document.getElementById('status-text').textContent = 'Eligible super participation winners are listed below.';
             renderEligibleWinners();
             renderWinnerCards();
             renderChitHistory();
@@ -956,16 +978,14 @@
 
         async function loadWinnerState() {
             try {
-                const response = await fetch('winner.json', { cache: 'no-store' });
-                const savedData = response.ok ? await response.json() : null;
                 const localData = JSON.parse(localStorage.getItem(STORAGE_KEY));
-                const latestData = getLatestWinnerState(savedData, localData);
+                const latestData = getLatestWinnerState(groupData, localData);
 
                 if (latestData) {
                     Object.assign(groupData, latestData);
                 }
             } catch (error) {
-                console.warn('Unable to load winner.json', error);
+                console.warn('Unable to load saved app state', error);
             } finally {
                 renderWinnerState();
             }
@@ -1135,6 +1155,11 @@
                 return;
             }
 
+            if (type === 'super' && !canPickSuperForCurrentChit()) {
+                document.getElementById('status-text').textContent = `Super Participation Winner can be selected only after chit ${getNextSuperChitCount()}.`;
+                return;
+            }
+
             if (!canCurrentUserPick(type)) {
                 const currentWinner = groupData[winnerState.winnerKey];
                 document.getElementById('status-text').textContent = type === 'chit'
@@ -1169,6 +1194,8 @@
                 groupData.current_winner = winnerRecord;
                 groupData.last_updated = selectedAt;
                 groupData.history = groupData.chit_history;
+            } else {
+                groupData.super_last_chit_count = groupData.chit_history.length;
             }
 
             saveWinnerState();
