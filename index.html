@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SEO Group Random Winner Picker Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
     <style>
         :root {
             --primary: #2563eb;
@@ -25,7 +26,7 @@
             padding: 20px;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
         }
 
@@ -92,6 +93,32 @@
             .dashboard {
                 grid-template-columns: 1fr;
             }
+
+            body {
+                padding: 12px;
+            }
+
+            .card,
+            .modal-card {
+                padding: 18px;
+            }
+
+            .tab-buttons,
+            .winner-actions,
+            .choice-buttons,
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .winner-list li {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .winner-list span {
+                text-align: left;
+                white-space: normal;
+            }
         }
 
         .card {
@@ -125,6 +152,12 @@
 
         button:hover {
             background-color: var(--primary-hover);
+        }
+
+        button i,
+        h1 i,
+        h2 i {
+            margin-right: 8px;
         }
 
         .winner-display {
@@ -414,56 +447,56 @@
 
     <div class="modal-overlay" id="auth-modal">
         <div class="modal-card">
-            <h2>Enter Your Name</h2>
+            <h2><i class="fa-solid fa-user-check" aria-hidden="true"></i>Enter Your Name</h2>
             <p style="font-size: 0.85rem; color: var(--text-muted);">Type your name or a part of it to enter.</p>
             <input type="text" id="username-input" placeholder="e.g. Prabu, Vijay, Megala..." onkeypress="checkEnter(event)">
             <div class="error-msg" id="error-msg">Name not found in group roster. Try again.</div>
-            <button onclick="verifyUser()">Access Dashboard</button>
+            <button onclick="verifyUser()"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>Access Dashboard</button>
         </div>
     </div>
 
     <div class="dashboard" id="main-dashboard">
         <div class="card">
-            <h1>SEO Group Selector</h1>
+            <h1><i class="fa-solid fa-shuffle" aria-hidden="true"></i>SEO Group Selector</h1>
             <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;" id="welcome-user-text">Welcome!</p>
 
             <div class="tab-buttons">
-                <button class="tab-button active" id="user-tab-button" onclick="showTab('user')">User</button>
-                <button class="tab-button" id="admin-tab-button" onclick="showTab('admin')">Super Admin</button>
-                <button class="tab-button" id="dashboard-tab-button" onclick="showTab('dashboard')">Dashboard</button>
+                <button class="tab-button active" id="user-tab-button" onclick="showTab('user')"><i class="fa-solid fa-user" aria-hidden="true"></i>User</button>
+                <button class="tab-button" id="admin-tab-button" onclick="showTab('admin')"><i class="fa-solid fa-user-shield" aria-hidden="true"></i>Super Admin</button>
+                <button class="tab-button" id="dashboard-tab-button" onclick="showTab('dashboard')"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i>Dashboard</button>
             </div>
 
             <div class="tab-panel active" id="user-tab-panel">
                 <div class="participation-panel" id="participation-panel">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Month Lottery</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i>Current Month Lottery</h2>
                     <p class="admin-note" id="participation-note">Confirm whether you want to be part of this month lottery selection.</p>
                     <div class="choice-buttons">
-                        <button id="participation-yes-button" onclick="confirmParticipation(true)">Yes, include me</button>
-                        <button id="participation-no-button" onclick="confirmParticipation(false)">No, skip me</button>
+                        <button id="participation-yes-button" onclick="confirmParticipation(true)"><i class="fa-solid fa-circle-check" aria-hidden="true"></i>Yes, include me</button>
+                        <button id="participation-no-button" onclick="confirmParticipation(false)"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>No, skip me</button>
                     </div>
                     <p class="admin-message" id="participation-message"></p>
                 </div>
 
                 <div class="name-update-panel" id="name-update-panel">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Name Update</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>Name Update</h2>
                     <p class="admin-note" id="name-update-note">You can update your name only once.</p>
                     <input type="text" id="name-update-input" placeholder="Enter updated name">
-                    <button id="name-update-button" onclick="updateUserName()">Update Name</button>
+                    <button id="name-update-button" onclick="updateUserName()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Update Name</button>
                     <p class="admin-message" id="name-update-message"></p>
                 </div>
 
                 <div class="participation-panel" id="feedback-panel">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Feedback</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i>Feedback</h2>
                     <p class="admin-note">Share a suggestion for the lottery process.</p>
                     <textarea id="feedback-input" placeholder="Enter your feedback or suggestion"></textarea>
-                    <button onclick="submitFeedback()">Submit Feedback</button>
+                    <button onclick="submitFeedback()"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i>Submit Feedback</button>
                     <p class="admin-message" id="feedback-message"></p>
                 </div>
             </div>
 
             <div class="tab-panel" id="admin-tab-panel">
             <div class="admin-panel" id="super-admin-panel">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Super Admin Monthly Entry</h2>
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-sliders" aria-hidden="true"></i>Super Admin Monthly Entry</h2>
                 <p class="admin-note" id="admin-day-note">Vijay enters the monthly participant list on day 1.</p>
 
                 <label for="lot-month-input">Month</label>
@@ -484,11 +517,11 @@
                 <label for="participants-input">Participants</label>
                 <textarea id="participants-input" placeholder="One participant per line. Optional format: Name | Random ID | Contact"></textarea>
 
-                <button id="save-monthly-button" onclick="saveMonthlyParticipants()">Save Monthly Participants</button>
+                <button id="save-monthly-button" onclick="saveMonthlyParticipants()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Save Monthly Participants</button>
                 <p class="admin-message" id="admin-message"></p>
 
                 <div style="margin-top: 18px;">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Month Yes Participants</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-list-check" aria-hidden="true"></i>Current Month Yes Participants</h2>
                     <table>
                         <thead>
                             <tr>
@@ -503,13 +536,13 @@
 
             <div class="tab-panel" id="dashboard-tab-panel">
                 <div class="participation-panel" id="prabu-dashboard-panel">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Participation Dashboard</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i>Participation Dashboard</h2>
                     <div class="metric-grid" id="dashboard-metrics"></div>
                     <p class="admin-note" id="vijay-activity-summary"></p>
                 </div>
 
                 <div class="participation-panel" id="feedback-review-panel">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Feedback Review</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-inbox" aria-hidden="true"></i>Feedback Review</h2>
                     <ul class="winner-list" id="feedback-review-list">
                         <li>No feedback yet.</li>
                     </ul>
@@ -517,14 +550,14 @@
             </div>
 
             <div class="winner-actions">
-                <button id="pick-chit-winner-button" onclick="pickWinner('chit')">Pick Chit Winner</button>
+                <button id="pick-chit-winner-button" onclick="pickWinner('chit')"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Pick Chit Winner</button>
             </div>
 
             <div class="status" id="status-text">Remaining in pool: 6/6</div>
 
             <div style="margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted); margin: 0;">Super Participation Eligible Winners</h2>
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted); margin: 0;"><i class="fa-solid fa-users" aria-hidden="true"></i>Super Participation Eligible Winners</h2>
                     <p class="eligible-count" id="eligible-count-text">Names only</p>
                 </div>
                 <table>
@@ -538,7 +571,7 @@
             </div>
 
             <div style="margin-top: 20px;">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Master Members Roster</h2>
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-address-book" aria-hidden="true"></i>Master Members Roster</h2>
                 <table>
                     <thead>
                         <tr>
@@ -552,7 +585,7 @@
         </div>
 
         <div class="card">
-            <h2>Current Winners</h2>
+            <h2><i class="fa-solid fa-trophy" aria-hidden="true"></i>Current Winners</h2>
             <div class="winner-summary">
                 <div class="winner-summary-card">
                     <span style="font-size: 0.85rem; color: var(--text-muted);">Chit Winner</span>
@@ -564,12 +597,12 @@
                     <span style="font-size: 0.85rem; color: var(--text-muted);">Super Participation Winner</span>
                     <strong id="super-winner-name">Ready to draw</strong>
                     <p id="super-winner-details" class="admin-note"></p>
-                    <button id="pick-super-winner-button" onclick="pickWinner('super')">Pick Super Participation Winner</button>
+                    <button id="pick-super-winner-button" onclick="pickWinner('super')"><i class="fa-solid fa-star" aria-hidden="true"></i>Pick Super Participation Winner</button>
                 </div>
             </div>
 
             <div style="margin-top: 20px;">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Year Chit Winner History</h2>
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>Current Year Chit Winner History</h2>
                 <div class="winner-history-scroll">
                     <ul class="winner-list" id="chit-history-list">
                         <li>No chit winners this year.</li>
@@ -578,7 +611,7 @@
             </div>
 
             <div style="margin-top: 20px;">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Super Participation Winner History</h2>
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-award" aria-hidden="true"></i>Super Participation Winner History</h2>
                 <div class="winner-history-scroll">
                     <ul class="winner-list" id="super-history-list">
                         <li>No super participation winners yet.</li>
@@ -587,7 +620,7 @@
             </div>
 
             <div style="margin-top: 20px;">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Name Change Log</h2>
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-signature" aria-hidden="true"></i>Name Change Log</h2>
                 <div class="winner-history-scroll">
                     <ul class="winner-list" id="name-change-list">
                         <li>No name changes yet.</li>
@@ -871,10 +904,14 @@
             });
         }
 
-        function loadFeedbackData() {
+        async function loadFeedbackData() {
             try {
+                const response = await fetch('feedback.json', { cache: 'no-store' });
+                const publicFeedback = response.ok ? await response.json() : { feedback: [] };
                 const savedFeedback = JSON.parse(localStorage.getItem(FEEDBACK_STORAGE_KEY));
-                feedbackData.feedback = Array.isArray(savedFeedback?.feedback) ? savedFeedback.feedback : [];
+                feedbackData.feedback = Array.isArray(savedFeedback?.feedback)
+                    ? savedFeedback.feedback
+                    : Array.isArray(publicFeedback.feedback) ? publicFeedback.feedback : [];
             } catch (error) {
                 feedbackData.feedback = [];
             }
@@ -1373,7 +1410,7 @@
 
         async function loadWinnerState() {
             try {
-                loadFeedbackData();
+                await loadFeedbackData();
                 const localData = JSON.parse(localStorage.getItem(STORAGE_KEY));
                 const latestData = getLatestWinnerState(groupData, localData);
 

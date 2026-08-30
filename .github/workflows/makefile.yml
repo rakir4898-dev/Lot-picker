@@ -31,7 +31,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir _site
-          cp index.html _site/
+          cp index.html feedback.json _site/
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3
