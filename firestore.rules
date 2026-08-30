@@ -2,11 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
-      return request.auth != null && request.auth.token.email.matches('.*@gmail\\.com$');
+      return request.auth != null && request.auth.token.phone_number != null;
     }
 
     function isPrabu() {
-      return signedIn() && request.auth.token.email == 'prabu@gmail.com';
+      return signedIn() && request.auth.token.phone_number == '+919363405440';
     }
 
     match /users/{userId} {

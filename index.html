@@ -447,11 +447,15 @@
 
     <div class="modal-overlay" id="auth-modal">
         <div class="modal-card">
-            <h2><i class="fa-solid fa-user-check" aria-hidden="true"></i>Enter Your Name</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Sign in with Google, then enter your roster name.</p>
-            <button id="google-login-button" onclick="signInWithGoogle()"><i class="fa-brands fa-google" aria-hidden="true"></i>Sign in with Google</button>
-            <p class="admin-note" id="google-auth-status">Google authentication is not connected yet.</p>
+            <h2><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>WhatsApp Style Login</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Enter your roster name and approved WhatsApp phone number.</p>
             <input type="text" id="username-input" placeholder="e.g. Prabu, Vijay, Megala..." onkeypress="checkEnter(event)">
+            <input type="tel" id="phone-input" placeholder="10-digit WhatsApp number" onkeypress="checkEnter(event)">
+            <button id="send-otp-button" onclick="sendPhoneOtp()"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>Send OTP</button>
+            <input type="text" id="otp-input" placeholder="Enter OTP" inputmode="numeric" onkeypress="checkEnter(event)">
+            <button id="verify-otp-button" onclick="verifyPhoneOtp()"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Verify OTP</button>
+            <div id="recaptcha-container"></div>
+            <p class="admin-note" id="phone-auth-status">Phone authentication is not connected yet.</p>
             <div class="error-msg" id="error-msg">Name not found in group roster. Try again.</div>
             <button onclick="verifyUser()"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>Access Dashboard</button>
         </div>
@@ -651,22 +655,22 @@
             billing_cycle: "September 2026",
             admin: "Megala",
             members: [
-                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin" },
-                { id: 2, name: "Anbarasu Ford Altimetrics", random_number: 1953, contact: "Member" },
-                { id: 3, name: "Murali Krishna Ford", random_number: 7326, contact: "Member" },
+                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "+91 97910 83307" },
+                { id: 2, name: "Anbarasu Ford Altimetrics", random_number: 1953, contact: "+91 98409 95982" },
+                { id: 3, name: "Murali Krishna Ford", random_number: 7326, contact: "+91 99406 52919" },
                 { id: 4, name: "Balu", random_number: 3049, contact: "+91 92822 29819" },
                 { id: 5, name: "Megala", random_number: 8160, contact: "+91 99622 33995", role: "Current Admin" },
-                { id: 6, name: "Prabu", random_number: 5287, contact: "User / Member" }
+                { id: 6, name: "Prabu", random_number: 5287, contact: "+91 93634 05440" }
             ],
-            current_winner: { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 },
+            current_winner: { id: 1, name: "Vijay Ford", random_number: 4821, contact: "+91 97910 83307", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 },
             remaining_pool_count: 6,
             history: [
-                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 }
+                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "+91 97910 83307", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 }
             ],
-            chit_winner: { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 },
+            chit_winner: { id: 1, name: "Vijay Ford", random_number: 4821, contact: "+91 97910 83307", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 },
             chit_last_picked_at: "2026-09-01T07:46:31Z",
             chit_history: [
-                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "Previous Admin", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 }
+                { id: 1, name: "Vijay Ford", random_number: 4821, contact: "+91 97910 83307", selected_at: "2026-09-01T07:46:31Z", amount: 15600, total_amount: 93600 }
             ],
             chit_winner_cycle: [1],
             super_winner: null,
@@ -687,7 +691,7 @@
             participation_change_log: [],
             vijay_task_log: [],
             winner_cycle: [],
-            member_emails: {},
+            member_phones: {},
             name_updates: {},
             name_change_log: []
         };
@@ -702,10 +706,11 @@
         let firestoreDb = null;
         let firebaseApi = null;
         let authenticatedUser = null;
+        let phoneConfirmationResult = null;
         let activeTab = 'user';
 
         function setAuthStatus(message, isError = false) {
-            const status = document.getElementById('google-auth-status');
+            const status = document.getElementById('phone-auth-status');
             if (!status) return;
             status.style.color = isError ? 'var(--error)' : 'var(--text-muted)';
             status.textContent = message;
@@ -715,7 +720,7 @@
             try {
                 const configResponse = await fetch('firebase-config.json', { cache: 'no-store' });
                 if (!configResponse.ok) {
-                    setAuthStatus('Add firebase-config.json to enable Google sign-in.', true);
+                    setAuthStatus('Add firebase-config.json to enable phone OTP sign-in.', true);
                     return;
                 }
 
@@ -732,32 +737,73 @@
 
                 authModule.onAuthStateChanged(firebaseAuth, user => {
                     authenticatedUser = user;
-                    if (user?.email) {
-                        setAuthStatus(`Signed in with ${user.email}`);
+                    if (user?.phoneNumber) {
+                        setAuthStatus(`Verified ${user.phoneNumber}`);
                     } else {
-                        setAuthStatus('Sign in with Google before accessing the dashboard.');
+                        setAuthStatus('Verify your WhatsApp phone number before accessing the dashboard.');
                     }
                 });
             } catch (error) {
-                setAuthStatus('Google sign-in setup is incomplete.', true);
+                setAuthStatus('Phone OTP setup is incomplete.', true);
                 console.warn('Firebase initialization failed', error);
             }
         }
 
-        async function signInWithGoogle() {
+        function normalizePhone(phone) {
+            const digits = phone.replace(/\D/g, '');
+            const withoutCountryCode = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+            return withoutCountryCode.length === 10 ? `+91${withoutCountryCode}` : '';
+        }
+
+        function getApprovedPhone(member) {
+            return normalizePhone(member.contact || '');
+        }
+
+        async function sendPhoneOtp() {
             if (!firebaseAuth || !firebaseApi) {
-                setAuthStatus('Google sign-in requires firebase-config.json setup.', true);
+                setAuthStatus('Phone OTP requires firebase-config.json setup.', true);
+                return;
+            }
+
+            const phoneNumber = normalizePhone(document.getElementById('phone-input').value);
+            if (!phoneNumber) {
+                setAuthStatus('Enter a valid 10-digit WhatsApp phone number.', true);
                 return;
             }
 
             try {
-                const provider = new firebaseApi.GoogleAuthProvider();
-                const result = await firebaseApi.signInWithPopup(firebaseAuth, provider);
-                authenticatedUser = result.user;
-                setAuthStatus(`Signed in with ${authenticatedUser.email}`);
+                if (!window.recaptchaVerifier) {
+                    window.recaptchaVerifier = new firebaseApi.RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
+                        size: 'invisible'
+                    });
+                }
+                phoneConfirmationResult = await firebaseApi.signInWithPhoneNumber(firebaseAuth, phoneNumber, window.recaptchaVerifier);
+                setAuthStatus(`OTP sent to ${phoneNumber}.`);
             } catch (error) {
-                setAuthStatus('Google sign-in failed. Try again.', true);
-                console.warn('Google sign-in failed', error);
+                setAuthStatus('Unable to send OTP. Check Firebase Phone Auth setup.', true);
+                console.warn('Phone OTP send failed', error);
+            }
+        }
+
+        async function verifyPhoneOtp() {
+            if (!phoneConfirmationResult) {
+                setAuthStatus('Send OTP first.', true);
+                return;
+            }
+
+            const otp = document.getElementById('otp-input').value.trim();
+            if (!otp) {
+                setAuthStatus('Enter the OTP.', true);
+                return;
+            }
+
+            try {
+                const result = await phoneConfirmationResult.confirm(otp);
+                authenticatedUser = result.user;
+                setAuthStatus(`Verified ${authenticatedUser.phoneNumber}`);
+            } catch (error) {
+                setAuthStatus('OTP verification failed.', true);
+                console.warn('Phone OTP verification failed', error);
             }
         }
 
@@ -840,17 +886,9 @@
             groupData.super_winner_cycle = Array.isArray(groupData.super_winner_cycle) ? groupData.super_winner_cycle : [];
             groupData.participation_change_log = Array.isArray(groupData.participation_change_log) ? groupData.participation_change_log : [];
             groupData.vijay_task_log = Array.isArray(groupData.vijay_task_log) ? groupData.vijay_task_log : [];
-            groupData.member_emails = groupData.member_emails || {};
+            groupData.member_phones = groupData.member_phones || {};
             groupData.name_updates = groupData.name_updates || {};
             groupData.name_change_log = Array.isArray(groupData.name_change_log) ? groupData.name_change_log : [];
-        }
-
-        function normalizeEmail(email) {
-            return email.trim().toLowerCase();
-        }
-
-        function isValidGmail(email) {
-            return /^[^\s@]+@gmail\.com$/.test(email);
         }
 
         function getChitAmount(dateValue = groupData.chit_last_picked_at || new Date()) {
@@ -1005,7 +1043,7 @@
                 await firebaseApi.addDoc(activityRef, {
                     action,
                     details,
-                    email: authenticatedUser.email,
+                    phoneNumber: authenticatedUser.phoneNumber,
                     memberName: currentUser?.name || null,
                     createdAt: firebaseApi.serverTimestamp()
                 });
@@ -1021,7 +1059,7 @@
                 await firebaseApi.addDoc(firebaseApi.collection(firestoreDb, 'feedback'), {
                     ...feedbackItem,
                     ownerUid: authenticatedUser.uid,
-                    ownerEmail: authenticatedUser.email,
+                    ownerPhoneNumber: authenticatedUser.phoneNumber,
                     createdAt: firebaseApi.serverTimestamp(),
                     updatedAt: firebaseApi.serverTimestamp()
                 });
@@ -1565,28 +1603,23 @@
                 errorMsg.style.display = 'block';
                 return;
             }
-            if (!authenticatedUser?.email || !isValidGmail(normalizeEmail(authenticatedUser.email))) {
-                errorMsg.textContent = "Please sign in with a Gmail account first.";
+            if (!authenticatedUser?.phoneNumber) {
+                errorMsg.textContent = "Please verify your WhatsApp phone number first.";
                 errorMsg.style.display = 'block';
                 return;
             }
             const matchedMember = groupData.members.find(m => m.name.toLowerCase().includes(inputVal));
             if (matchedMember) {
-                const gmailInput = normalizeEmail(authenticatedUser.email);
-                const savedGmail = groupData.member_emails[matchedMember.id];
-                if (savedGmail && savedGmail !== gmailInput) {
-                    errorMsg.textContent = "Gmail authentication failed. Use the same Gmail entered the first time.";
+                const verifiedPhone = normalizePhone(authenticatedUser.phoneNumber);
+                const approvedPhone = getApprovedPhone(matchedMember);
+                if (!approvedPhone || verifiedPhone !== approvedPhone) {
+                    errorMsg.textContent = "Phone authentication failed. Use the WhatsApp number registered for this member.";
                     errorMsg.style.display = 'block';
                     return;
                 }
 
-                if (!savedGmail) {
-                    if (!window.confirm(`Use ${gmailInput} as your Gmail for future authentication?`)) {
-                        return;
-                    }
-                    groupData.member_emails[matchedMember.id] = gmailInput;
-                    saveWinnerState();
-                }
+                groupData.member_phones[matchedMember.id] = verifiedPhone;
+                saveWinnerState();
 
                 currentUser = matchedMember;
                 document.getElementById('auth-modal').style.display = 'none';
