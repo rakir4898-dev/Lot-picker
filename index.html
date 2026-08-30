@@ -477,6 +477,24 @@
                     </ul>
                 </div>
             </div>
+
+            <div style="margin-top: 20px;">
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Super Participation Winner History</h2>
+                <div class="winner-history-scroll">
+                    <ul class="winner-list" id="super-history-list">
+                        <li>No super participation winners yet.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Name Change Log</h2>
+                <div class="winner-history-scroll">
+                    <ul class="winner-list" id="name-change-list">
+                        <li>No name changes yet.</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -525,7 +543,8 @@
             },
             participation_by_month: {},
             winner_cycle: [],
-            name_updates: {}
+            name_updates: {},
+            name_change_log: []
         };
 
         let availablePool = [];
@@ -582,6 +601,7 @@
             groupData.super_history = Array.isArray(groupData.super_history) ? groupData.super_history : [];
             groupData.super_winner_cycle = Array.isArray(groupData.super_winner_cycle) ? groupData.super_winner_cycle : [];
             groupData.name_updates = groupData.name_updates || {};
+            groupData.name_change_log = Array.isArray(groupData.name_change_log) ? groupData.name_change_log : [];
         }
 
         function getChitAmount(dateValue = groupData.chit_last_picked_at || new Date()) {
@@ -773,6 +793,67 @@
             });
         }
 
+        function renderSuperHistory() {
+            const historyList = document.getElementById('super-history-list');
+            historyList.innerHTML = '';
+
+            if (groupData.super_history.length === 0) {
+                const emptyItem = document.createElement('li');
+                emptyItem.textContent = 'No super participation winners yet.';
+                historyList.appendChild(emptyItem);
+                return;
+            }
+
+            groupData.super_history.forEach(winner => {
+                const pickedDate = getWinnerPickedDate(winner);
+                const listItem = document.createElement('li');
+                const winnerInfo = document.createElement('div');
+                const winnerName = document.createElement('strong');
+                const winnerMeta = document.createElement('small');
+                const dateText = document.createElement('span');
+
+                winnerName.textContent = winner.name;
+                winnerMeta.textContent = `Chit count: ${winner.chit_count || 'Unavailable'}`;
+                dateText.textContent = pickedDate ? `Picked ${formatDate(new Date(pickedDate))}` : 'Picked date unavailable';
+
+                winnerInfo.appendChild(winnerName);
+                winnerInfo.appendChild(winnerMeta);
+                listItem.appendChild(winnerInfo);
+                listItem.appendChild(dateText);
+                historyList.appendChild(listItem);
+            });
+        }
+
+        function renderNameChangeLog() {
+            const historyList = document.getElementById('name-change-list');
+            historyList.innerHTML = '';
+
+            if (groupData.name_change_log.length === 0) {
+                const emptyItem = document.createElement('li');
+                emptyItem.textContent = 'No name changes yet.';
+                historyList.appendChild(emptyItem);
+                return;
+            }
+
+            groupData.name_change_log.forEach(change => {
+                const listItem = document.createElement('li');
+                const changeInfo = document.createElement('div');
+                const changeName = document.createElement('strong');
+                const changeMeta = document.createElement('small');
+                const dateText = document.createElement('span');
+
+                changeName.textContent = change.new_name;
+                changeMeta.textContent = `From: ${change.old_name}`;
+                dateText.textContent = change.updated_at ? `Changed ${formatDate(new Date(change.updated_at))}` : 'Date unavailable';
+
+                changeInfo.appendChild(changeName);
+                changeInfo.appendChild(changeMeta);
+                listItem.appendChild(changeInfo);
+                listItem.appendChild(dateText);
+                historyList.appendChild(listItem);
+            });
+        }
+
         function renderEligibleWinners() {
             const eligibleParticipants = getEligibleParticipants();
             const tableBody = document.getElementById('eligible-table-body');
@@ -887,6 +968,7 @@
         }
 
         function renderNameUpdatePanel() {
+            const namePanel = document.getElementById('name-update-panel');
             const nameInput = document.getElementById('name-update-input');
             const nameButton = document.getElementById('name-update-button');
             const nameNote = document.getElementById('name-update-note');
@@ -896,12 +978,9 @@
 
             nameInput.value = currentUser.name;
             if (groupData.name_updates[currentUser.id]) {
-                nameInput.disabled = true;
-                nameButton.disabled = true;
-                nameNote.textContent = 'Your one-time name update has already been used.';
-                nameMessage.style.color = 'var(--text-muted)';
-                nameMessage.textContent = 'Name update locked.';
+                namePanel.style.display = 'none';
             } else {
+                namePanel.style.display = 'block';
                 nameInput.disabled = false;
                 nameButton.disabled = false;
                 nameNote.textContent = 'You can update your name only once.';
@@ -954,6 +1033,8 @@
             renderEligibleWinners();
             renderWinnerCards();
             renderChitHistory();
+            renderSuperHistory();
+            renderNameChangeLog();
             renderAdminPanel();
             renderParticipationPanel();
             renderNameUpdatePanel();
@@ -1112,6 +1193,9 @@
                 return;
             }
 
+            const previousName = currentUser.name;
+            const updatedAt = new Date().toISOString();
+
             updateMemberName(groupData.members, currentUser.id, updatedName);
             updateMemberName(groupData.monthly_lot.participants, currentUser.id, updatedName);
             updateMemberName(groupData.chit_history, currentUser.id, updatedName);
@@ -1119,7 +1203,13 @@
             updateWinnerName(groupData.chit_winner, currentUser.id, updatedName);
             updateWinnerName(groupData.super_winner, currentUser.id, updatedName);
             currentUser.name = updatedName;
-            groupData.name_updates[currentUser.id] = new Date().toISOString();
+            groupData.name_updates[currentUser.id] = updatedAt;
+            groupData.name_change_log.push({
+                id: currentUser.id,
+                old_name: previousName,
+                new_name: updatedName,
+                updated_at: updatedAt
+            });
 
             saveWinnerState();
             document.getElementById('welcome-user-text').textContent = `Logged in as: ${currentUser.name}`;
@@ -1183,6 +1273,8 @@
             if (type === 'chit') {
                 winnerRecord.amount = getChitAmount(selectedAt);
                 winnerRecord.total_amount = getChitTotalAmount(selectedAt);
+            } else {
+                winnerRecord.chit_count = groupData.chit_history.length;
             }
 
             groupData[winnerState.winnerKey] = winnerRecord;
