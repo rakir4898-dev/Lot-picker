@@ -81,10 +81,9 @@
 
         .dashboard {
             display: grid;
-            grid-template-columns: 1fr 1fr;
             gap: 20px;
             width: 100%;
-            max-width: 900px;
+            max-width: 640px;
             display: none;
         }
 
@@ -168,18 +167,134 @@
             font-weight: 600;
         }
 
-        .json-preview {
-            background-color: #0b0f19;
-            color: #38bdf8;
-            padding: 12px;
-            border-radius: 6px;
-            font-family: monospace;
-            font-size: 0.8rem;
-            white-space: pre-wrap;
-            overflow-x: auto;
-            max-height: 200px;
+        .winner-list {
+            list-style: none;
+            margin: 10px 0 0;
+            padding: 0;
+        }
+
+        .winner-list li {
+            background-color: #0f172a;
             border: 1px solid var(--border);
-            margin-top: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            margin-top: 8px;
+        }
+
+        .winner-list strong {
+            color: var(--accent);
+            display: block;
+        }
+
+        .winner-list span {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .admin-panel {
+            display: none;
+            margin-top: 20px;
+            padding: 16px;
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .admin-panel label {
+            color: var(--text-muted);
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .admin-panel input,
+        .admin-panel textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #0b0f19;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.9rem;
+            margin-top: 6px;
+            padding: 10px;
+        }
+
+        .admin-panel textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .admin-note {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            line-height: 1.4;
+            margin: 8px 0 0;
+        }
+
+        .admin-message {
+            color: var(--accent);
+            font-size: 0.85rem;
+            margin: 10px 0 0;
+            min-height: 1.2em;
+        }
+
+        .eligible-count {
+            color: var(--accent);
+            font-size: 0.85rem;
+            margin: 0;
+            text-align: right;
+        }
+
+        .participation-panel {
+            margin-top: 20px;
+            padding: 16px;
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .choice-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .choice-buttons button:last-child {
+            background-color: #475569;
+        }
+
+        .choice-buttons button:last-child:hover {
+            background-color: #64748b;
+        }
+
+        .badge {
+            border-radius: 999px;
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 8px;
+        }
+
+        .badge-yes {
+            background-color: rgba(52, 211, 153, 0.18);
+            color: var(--accent);
+        }
+
+        .badge-no {
+            background-color: rgba(248, 113, 113, 0.18);
+            color: var(--error);
+        }
+
+        .badge-pending {
+            background-color: rgba(148, 163, 184, 0.18);
+            color: var(--text-muted);
         }
     </style>
 </head>
@@ -200,15 +315,66 @@
             <h1>SEO Group Selector</h1>
             <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;" id="welcome-user-text">Welcome!</p>
 
-            <button onclick="pickWinner()">Pick Next Winner</button>
+            <div class="admin-panel" id="super-admin-panel">
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Super Admin Monthly Entry</h2>
+                <p class="admin-note" id="admin-day-note">Vijay enters the monthly participant list on day 1.</p>
+
+                <label for="lot-month-input">Month</label>
+                <input type="month" id="lot-month-input">
+
+                <label for="max-entries-input">Max eligible entries for winner lot</label>
+                <input type="number" id="max-entries-input" min="1" step="1">
+
+                <label for="participants-input">Participants</label>
+                <textarea id="participants-input" placeholder="One participant per line. Optional format: Name | Random ID | Contact"></textarea>
+
+                <button onclick="saveMonthlyParticipants()">Save Monthly Participants</button>
+                <p class="admin-message" id="admin-message"></p>
+            </div>
+
+            <div class="participation-panel" id="participation-panel">
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Month Lottery</h2>
+                <p class="admin-note" id="participation-note">Confirm whether you want to be part of this month lottery selection.</p>
+                <div class="choice-buttons">
+                    <button onclick="confirmParticipation(true)">Yes, include me</button>
+                    <button onclick="confirmParticipation(false)">No, skip me</button>
+                </div>
+                <p class="admin-message" id="participation-message"></p>
+            </div>
+
+            <button id="pick-winner-button" onclick="pickWinner()">Pick Next Winner</button>
 
             <div class="winner-display">
                 <span style="font-size: 0.85rem; color: var(--text-muted);">Current Selected Winner</span>
                 <p id="winner-name">Ready to draw</p>
                 <p id="winner-details" style="font-size: 0.85rem; color: #cbd5e1; margin: 0;"></p>
+                <p id="winner-date" style="font-size: 0.85rem; color: #cbd5e1; margin: 8px 0 0;"></p>
             </div>
 
             <div class="status" id="status-text">Remaining in pool: 6/6</div>
+
+            <div style="margin-top: 20px;">
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Picked Winners</h2>
+                <ul class="winner-list" id="winner-history-list">
+                    <li>No winners picked yet.</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted); margin: 0;">Eligible Winners</h2>
+                    <p class="eligible-count" id="eligible-count-text">0 eligible</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Random ID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eligible-table-body"></tbody>
+                </table>
+            </div>
 
             <div style="margin-top: 20px;">
                 <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Master Members Roster</h2>
@@ -223,19 +389,16 @@
                 </table>
             </div>
         </div>
-
-        <div class="card">
-            <h2>Live `winner.json` State</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Reflects real-time changes saved after every selection process.</p>
-            <div class="json-preview" id="json-output">
-                { "status": "Waiting for first pick..." }
-            </div>
-        </div>
     </div>
 
     <script>
+        const PICK_INTERVAL_MONTHS = 6;
+        const STORAGE_KEY = 'seo-group-winner-state';
+        const SUPER_ADMIN_KEYWORD = 'vijay';
+
         const groupData = {
             last_updated: "2026-09-01T00:00:00Z",
+            state_updated_at: null,
             billing_cycle: "September 2026",
             admin: "Megala",
             members: [
@@ -248,16 +411,325 @@
             ],
             current_winner: null,
             remaining_pool_count: 6,
-            history: []
+            history: [],
+            monthly_lot: {
+                month: "2026-09",
+                entry_day: 1,
+                max_entries: 6,
+                participants: []
+            },
+            participation_by_month: {},
+            winner_cycle: []
         };
 
         let availablePool = [];
+        let currentUser = null;
+
+        function getCurrentMonthValue() {
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        function getDefaultParticipants() {
+            return groupData.members.map(member => ({ ...member }));
+        }
+
+        function normalizeMonthlyLot() {
+            if (!groupData.monthly_lot) {
+                groupData.monthly_lot = {
+                    month: "2026-09",
+                    entry_day: 1,
+                    max_entries: groupData.members.length,
+                    participants: getDefaultParticipants()
+                };
+            }
+
+            groupData.monthly_lot.month = groupData.monthly_lot.month || getCurrentMonthValue();
+
+            if (!Array.isArray(groupData.monthly_lot.participants) || groupData.monthly_lot.participants.length === 0) {
+                groupData.monthly_lot.participants = getDefaultParticipants();
+            }
+
+            groupData.monthly_lot.max_entries = Math.max(
+                1,
+                Math.min(Number(groupData.monthly_lot.max_entries) || 1, groupData.monthly_lot.participants.length)
+            );
+            groupData.participation_by_month = groupData.participation_by_month || {};
+            groupData.winner_cycle = Array.isArray(groupData.winner_cycle) ? groupData.winner_cycle : [];
+        }
+
+        function getMonthlyResponses() {
+            normalizeMonthlyLot();
+            const month = groupData.monthly_lot.month;
+            groupData.participation_by_month[month] = groupData.participation_by_month[month] || {};
+            return groupData.participation_by_month[month];
+        }
+
+        function getParticipationResponse(memberId) {
+            return getMonthlyResponses()[memberId];
+        }
+
+        function getCurrentUserParticipant() {
+            if (!currentUser) return null;
+            normalizeMonthlyLot();
+            return groupData.monthly_lot.participants.find(participant => participant.id === currentUser.id)
+                || groupData.monthly_lot.participants.find(participant => participant.name.toLowerCase() === currentUser.name.toLowerCase())
+                || null;
+        }
+
+        function getConfirmedParticipants() {
+            const responses = getMonthlyResponses();
+            return groupData.monthly_lot.participants.filter(participant => responses[participant.id] === true);
+        }
+
+        function getEligibleParticipants(options = {}) {
+            const excludeCurrentWinner = options.excludeCurrentWinner ?? false;
+            const confirmedParticipants = getConfirmedParticipants();
+            let candidates = confirmedParticipants;
+
+            if (excludeCurrentWinner && groupData.current_winner) {
+                candidates = candidates.filter(participant => participant.id !== groupData.current_winner.id);
+            }
+
+            return candidates.slice(0, groupData.monthly_lot.max_entries);
+        }
+
+        function getWinnerPoolCandidates() {
+            const eligibleParticipants = getEligibleParticipants({ excludeCurrentWinner: true });
+            const selectedWinnerIds = new Set(groupData.winner_cycle);
+            const unpickedParticipants = eligibleParticipants.filter(participant => !selectedWinnerIds.has(participant.id));
+
+            if (unpickedParticipants.length > 0) return unpickedParticipants;
+
+            groupData.winner_cycle = groupData.current_winner ? [groupData.current_winner.id] : [];
+            return eligibleParticipants.filter(participant => !groupData.winner_cycle.includes(participant.id));
+        }
+
+        function isSuperAdmin(member) {
+            return member.name.toLowerCase().includes(SUPER_ADMIN_KEYWORD);
+        }
+
+        function isCurrentWinner(member) {
+            return Boolean(groupData.current_winner && member && groupData.current_winner.id === member.id);
+        }
+
+        function canCurrentUserPick() {
+            if (!currentUser) return false;
+            if (!groupData.current_winner || groupData.history.length === 0) return isSuperAdmin(currentUser);
+            return isCurrentWinner(currentUser);
+        }
+
+        function addMonths(date, months) {
+            const result = new Date(date);
+            const originalDay = result.getDate();
+            result.setMonth(result.getMonth() + months);
+            if (result.getDate() !== originalDay) {
+                result.setDate(0);
+            }
+            return result;
+        }
+
+        function getNextPickDate() {
+            if (!groupData.current_winner || !groupData.last_updated) return null;
+            const lastPickDate = new Date(groupData.last_updated);
+            if (Number.isNaN(lastPickDate.getTime())) return null;
+            return addMonths(lastPickDate, PICK_INTERVAL_MONTHS);
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        function getWinnerPickedDate(winner, index) {
+            if (winner.selected_at) return winner.selected_at;
+            if (groupData.current_winner && winner.id === groupData.current_winner.id && index === groupData.history.length - 1) {
+                return groupData.last_updated;
+            }
+            return null;
+        }
+
+        function renderWinnerHistory() {
+            const historyList = document.getElementById('winner-history-list');
+            historyList.innerHTML = '';
+
+            if (groupData.history.length === 0) {
+                const emptyItem = document.createElement('li');
+                emptyItem.textContent = 'No winners picked yet.';
+                historyList.appendChild(emptyItem);
+                return;
+            }
+
+            groupData.history.forEach((winner, index) => {
+                const pickedDate = getWinnerPickedDate(winner, index);
+                const listItem = document.createElement('li');
+                const winnerInfo = document.createElement('div');
+                const winnerName = document.createElement('strong');
+                const winnerMeta = document.createElement('small');
+                const dateText = document.createElement('span');
+
+                winnerName.textContent = winner.name;
+                winnerMeta.textContent = `Random ID: ${winner.random_number}`;
+                dateText.textContent = pickedDate ? `Picked ${formatDate(new Date(pickedDate))}` : 'Picked date unavailable';
+
+                winnerInfo.appendChild(winnerName);
+                winnerInfo.appendChild(winnerMeta);
+                listItem.appendChild(winnerInfo);
+                listItem.appendChild(dateText);
+                historyList.appendChild(listItem);
+            });
+        }
+
+        function renderEligibleWinners() {
+            const eligibleParticipants = getEligibleParticipants({ excludeCurrentWinner: true });
+            const tableBody = document.getElementById('eligible-table-body');
+            const countText = document.getElementById('eligible-count-text');
+
+            tableBody.innerHTML = '';
+            countText.textContent = `${eligibleParticipants.length}/${groupData.monthly_lot.participants.length} eligible`;
+
+            if (eligibleParticipants.length === 0) {
+                const tableRow = document.createElement('tr');
+                tableRow.innerHTML = '<td colspan="2">No confirmed participants yet.</td>';
+                tableBody.appendChild(tableRow);
+                return;
+            }
+
+            eligibleParticipants.forEach(participant => {
+                const tableRow = document.createElement('tr');
+                tableRow.innerHTML = `<td>${participant.name}</td><td>${participant.random_number}</td>`;
+                tableBody.appendChild(tableRow);
+            });
+        }
+
+        function renderAdminPanel() {
+            const adminPanel = document.getElementById('super-admin-panel');
+            if (!currentUser || !isSuperAdmin(currentUser)) {
+                adminPanel.style.display = 'none';
+                return;
+            }
+
+            const today = new Date();
+            const participantLines = groupData.monthly_lot.participants.map(participant => {
+                return `${participant.name} | ${participant.random_number} | ${participant.contact || 'Member'}`;
+            });
+
+            adminPanel.style.display = 'block';
+            document.getElementById('lot-month-input').value = groupData.monthly_lot.month;
+            document.getElementById('max-entries-input').value = groupData.monthly_lot.max_entries;
+            document.getElementById('participants-input').value = participantLines.join('\n');
+            document.getElementById('admin-day-note').textContent = today.getDate() === groupData.monthly_lot.entry_day
+                ? 'Today is day 1. Enter this month\'s participants now.'
+                : `Monthly participants are expected on day ${groupData.monthly_lot.entry_day}.`;
+        }
+
+        function renderParticipationPanel() {
+            const participationPanel = document.getElementById('participation-panel');
+            const participationNote = document.getElementById('participation-note');
+            const participationMessage = document.getElementById('participation-message');
+            const participant = getCurrentUserParticipant();
+
+            if (!currentUser || !participant) {
+                participationPanel.style.display = 'none';
+                return;
+            }
+
+            const response = getParticipationResponse(participant.id);
+            participationPanel.style.display = 'block';
+            participationNote.textContent = `Month: ${groupData.monthly_lot.month}. Confirm whether you want to be part of this month lottery selection.`;
+
+            if (response === true) {
+                participationMessage.style.color = 'var(--accent)';
+                participationMessage.textContent = 'Your response is saved: Yes, include me.';
+            } else if (response === false) {
+                participationMessage.style.color = 'var(--error)';
+                participationMessage.textContent = 'Your response is saved: No, skip me.';
+            } else {
+                participationMessage.style.color = 'var(--text-muted)';
+                participationMessage.textContent = 'No response saved for this month yet.';
+            }
+        }
+
+        function renderWinnerState() {
+            const pickButton = document.getElementById('pick-winner-button');
+            const nextPickDate = getNextPickDate();
+            const winner = groupData.current_winner;
+
+            if (winner) {
+                document.getElementById('winner-name').textContent = winner.name;
+                document.getElementById('winner-details').textContent = `Number: ${winner.random_number} | Contact: ${winner.contact}`;
+                document.getElementById('winner-date').textContent = `Picked on ${formatDate(new Date(groupData.last_updated))}`;
+            } else {
+                document.getElementById('winner-date').textContent = '';
+            }
+
+            const eligibleParticipants = getEligibleParticipants({ excludeCurrentWinner: true });
+            groupData.remaining_pool_count = eligibleParticipants.length;
+            document.getElementById('status-text').textContent = `Eligible surprise winners: ${eligibleParticipants.length}/${groupData.monthly_lot.participants.length}`;
+            renderEligibleWinners();
+            renderWinnerHistory();
+            renderAdminPanel();
+            renderParticipationPanel();
+
+            if (nextPickDate && new Date() < nextPickDate) {
+                pickButton.disabled = true;
+                pickButton.textContent = `Next pick available ${formatDate(nextPickDate)}`;
+                document.getElementById('status-text').textContent = `Winner already picked. Next pick available on ${formatDate(nextPickDate)}.`;
+            } else if (!canCurrentUserPick()) {
+                pickButton.disabled = true;
+                pickButton.textContent = groupData.current_winner ? 'Only current winner can pick next' : 'Only Vijay can pick first winner';
+                document.getElementById('status-text').textContent = groupData.current_winner
+                    ? `Only ${groupData.current_winner.name} can select the next winner.`
+                    : 'Vijay must pick the first winner.';
+            } else if (eligibleParticipants.length === 0) {
+                pickButton.disabled = true;
+                pickButton.textContent = 'No eligible winners yet';
+            } else {
+                pickButton.disabled = false;
+                pickButton.textContent = 'Pick Next Winner';
+            }
+        }
+
+        function saveWinnerState() {
+            groupData.state_updated_at = new Date().toISOString();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(groupData));
+        }
+
+        function getLatestWinnerState(savedData, localData) {
+            if (!localData) return savedData;
+            if (!savedData) return localData;
+            if (localData.state_updated_at) return localData;
+
+            const savedDate = new Date(savedData.state_updated_at || savedData.last_updated).getTime();
+            const localDate = new Date(localData.state_updated_at || localData.last_updated).getTime();
+            return localDate > savedDate ? localData : savedData;
+        }
+
+        async function loadWinnerState() {
+            try {
+                const response = await fetch('winner.json', { cache: 'no-store' });
+                const savedData = response.ok ? await response.json() : null;
+                const localData = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                const latestData = getLatestWinnerState(savedData, localData);
+
+                if (latestData) {
+                    Object.assign(groupData, latestData);
+                }
+            } catch (error) {
+                console.warn('Unable to load winner.json', error);
+            } finally {
+                renderWinnerState();
+            }
+        }
 
         function initPool() {
-            availablePool = [...groupData.members];
-            for (let i = availablePool.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [availablePool[i], availablePool[j]] = [availablePool[j], availablePool[i]];
+            availablePool = [...getWinnerPoolCandidates()];
+            for (let poolIndex = availablePool.length - 1; poolIndex > 0; poolIndex--) {
+                const swapIndex = Math.floor(Math.random() * (poolIndex + 1));
+                [availablePool[poolIndex], availablePool[swapIndex]] = [availablePool[swapIndex], availablePool[poolIndex]];
             }
         }
 
@@ -275,11 +747,13 @@
             }
             const matchedMember = groupData.members.find(m => m.name.toLowerCase().includes(inputVal));
             if (matchedMember) {
+                currentUser = matchedMember;
                 document.getElementById('auth-modal').style.display = 'none';
                 document.getElementById('main-dashboard').style.display = 'grid';
                 document.getElementById('welcome-user-text').textContent = `Logged in as: ${matchedMember.name}`;
                 renderRoster();
                 initPool();
+                renderWinnerState();
             } else {
                 errorMsg.textContent = "Name not found in group roster. Try again.";
                 errorMsg.style.display = 'block';
@@ -296,21 +770,107 @@
             });
         }
 
+        function parseParticipantLine(line, index) {
+            const [rawName, rawRandomNumber, rawContact] = line.split('|').map(value => value.trim());
+            const existingMember = groupData.members.find(member => member.name.toLowerCase() === rawName.toLowerCase());
+
+            return {
+                id: existingMember?.id || index + 1,
+                name: rawName,
+                random_number: Number(rawRandomNumber) || existingMember?.random_number || 1000 + index,
+                contact: rawContact || existingMember?.contact || 'Member',
+                role: existingMember?.role
+            };
+        }
+
+        function saveMonthlyParticipants() {
+            const participantLines = document.getElementById('participants-input').value
+                .split('\n')
+                .map(line => line.trim())
+                .filter(Boolean);
+            const adminMessage = document.getElementById('admin-message');
+
+            if (participantLines.length === 0) {
+                adminMessage.style.color = 'var(--error)';
+                adminMessage.textContent = 'Enter at least one participant.';
+                return;
+            }
+
+            const participants = participantLines.map(parseParticipantLine);
+            const requestedMaxEntries = Number(document.getElementById('max-entries-input').value) || participants.length;
+
+            groupData.monthly_lot = {
+                month: document.getElementById('lot-month-input').value || groupData.monthly_lot.month,
+                entry_day: 1,
+                max_entries: Math.max(1, Math.min(requestedMaxEntries, participants.length)),
+                participants
+            };
+            groupData.billing_cycle = groupData.monthly_lot.month;
+            groupData.members = participants;
+            availablePool = [];
+
+            saveWinnerState();
+            renderRoster();
+            renderWinnerState();
+
+            adminMessage.style.color = 'var(--accent)';
+            adminMessage.textContent = `Saved ${participants.length} participants. ${groupData.monthly_lot.max_entries} are eligible for the lot.`;
+        }
+
+        function confirmParticipation(wantsToJoin) {
+            const participant = getCurrentUserParticipant();
+            const responseText = wantsToJoin ? 'join' : 'skip';
+
+            if (!participant) {
+                document.getElementById('participation-message').textContent = 'You are not in this month participant list.';
+                return;
+            }
+
+            if (!window.confirm(`Confirm that you want to ${responseText} the ${groupData.monthly_lot.month} lottery selection?`)) {
+                return;
+            }
+
+            const responses = getMonthlyResponses();
+            responses[participant.id] = wantsToJoin;
+            availablePool = [];
+            saveWinnerState();
+            renderWinnerState();
+        }
+
         function pickWinner() {
+            const nextPickDate = getNextPickDate();
+            if (nextPickDate && new Date() < nextPickDate) {
+                document.getElementById('status-text').textContent = `Winner already picked. Next pick available on ${formatDate(nextPickDate)}.`;
+                return;
+            }
+
+            if (!canCurrentUserPick()) {
+                document.getElementById('status-text').textContent = groupData.current_winner
+                    ? `Only ${groupData.current_winner.name} can select the next winner.`
+                    : 'Vijay must pick the first winner.';
+                return;
+            }
+
+            if (getWinnerPoolCandidates().length === 0) {
+                document.getElementById('status-text').textContent = 'No eligible participants. Vijay must enter this month\'s participants first.';
+                return;
+            }
+
             if (availablePool.length === 0) {
                 initPool();
-                groupData.history = [];
             }
             groupData.current_winner = availablePool.pop();
-            groupData.history.push(groupData.current_winner);
-            groupData.remaining_pool_count = availablePool.length;
             groupData.last_updated = new Date().toISOString();
+            groupData.current_winner.selected_at = groupData.last_updated;
+            groupData.history.push(groupData.current_winner);
+            groupData.winner_cycle.push(groupData.current_winner.id);
+            groupData.remaining_pool_count = availablePool.length;
 
-            document.getElementById('winner-name').textContent = groupData.current_winner.name;
-            document.getElementById('winner-details').textContent = `Number: ${groupData.current_winner.random_number} | Contact: ${groupData.current_winner.contact}`;
-            document.getElementById('status-text').textContent = `Remaining in pool: ${availablePool.length}/${groupData.members.length}`;
-            document.getElementById('json-output').textContent = JSON.stringify(groupData, null, 2);
+            saveWinnerState();
+            renderWinnerState();
         }
+
+        loadWinnerState();
     </script>
 </body>
 </html>
