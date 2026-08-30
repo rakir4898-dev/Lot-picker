@@ -447,14 +447,23 @@
 
     <div class="modal-overlay" id="auth-modal">
         <div class="modal-card">
-            <h2><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>WhatsApp Style Login</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Enter your roster name and approved WhatsApp phone number.</p>
+            <h2><i class="fa-solid fa-user-check" aria-hidden="true"></i>Choose Login Method</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Enter your roster name, then choose Google or WhatsApp-style phone OTP.</p>
             <input type="text" id="username-input" placeholder="e.g. Prabu, Vijay, Megala..." onkeypress="checkEnter(event)">
+            <div class="choice-buttons">
+                <button id="choose-google-button" onclick="setAuthMethod('google')"><i class="fa-brands fa-google" aria-hidden="true"></i>Google</button>
+                <button id="choose-phone-button" class="active" onclick="setAuthMethod('phone')"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>WhatsApp</button>
+            </div>
+            <div id="google-auth-panel" style="display: none;">
+                <button id="google-login-button" onclick="signInWithGoogle()"><i class="fa-brands fa-google" aria-hidden="true"></i>Sign in with Google</button>
+            </div>
+            <div id="phone-auth-panel">
             <input type="tel" id="phone-input" placeholder="10-digit WhatsApp number" onkeypress="checkEnter(event)">
             <button id="send-otp-button" onclick="sendPhoneOtp()"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>Send OTP</button>
             <input type="text" id="otp-input" placeholder="Enter OTP" inputmode="numeric" onkeypress="checkEnter(event)">
             <button id="verify-otp-button" onclick="verifyPhoneOtp()"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Verify OTP</button>
             <div id="recaptcha-container"></div>
+            </div>
             <p class="admin-note" id="phone-auth-status">Phone authentication is not connected yet.</p>
             <div class="error-msg" id="error-msg">Name not found in group roster. Try again.</div>
             <button onclick="verifyUser()"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>Access Dashboard</button>
@@ -691,6 +700,7 @@
             participation_change_log: [],
             vijay_task_log: [],
             winner_cycle: [],
+            member_emails: {},
             member_phones: {},
             name_updates: {},
             name_change_log: []
@@ -707,6 +717,7 @@
         let firebaseApi = null;
         let authenticatedUser = null;
         let phoneConfirmationResult = null;
+        let authMethod = 'phone';
         let activeTab = 'user';
 
         function setAuthStatus(message, isError = false) {
@@ -720,7 +731,7 @@
             try {
                 const configResponse = await fetch('firebase-config.json', { cache: 'no-store' });
                 if (!configResponse.ok) {
-                    setAuthStatus('Add firebase-config.json to enable phone OTP sign-in.', true);
+                    setAuthStatus('Add firebase-config.json to enable Google or WhatsApp sign-in.', true);
                     return;
                 }
 
@@ -739,13 +750,40 @@
                     authenticatedUser = user;
                     if (user?.phoneNumber) {
                         setAuthStatus(`Verified ${user.phoneNumber}`);
+                    } else if (user?.email) {
+                        setAuthStatus(`Signed in with ${user.email}`);
                     } else {
-                        setAuthStatus('Verify your WhatsApp phone number before accessing the dashboard.');
+                        setAuthStatus('Choose Google or WhatsApp sign-in before accessing the dashboard.');
                     }
                 });
             } catch (error) {
-                setAuthStatus('Phone OTP setup is incomplete.', true);
+                setAuthStatus('Authentication setup is incomplete.', true);
                 console.warn('Firebase initialization failed', error);
+            }
+        }
+
+        function setAuthMethod(method) {
+            authMethod = method;
+            document.getElementById('google-auth-panel').style.display = method === 'google' ? 'block' : 'none';
+            document.getElementById('phone-auth-panel').style.display = method === 'phone' ? 'block' : 'none';
+            document.getElementById('choose-google-button').classList.toggle('active', method === 'google');
+            document.getElementById('choose-phone-button').classList.toggle('active', method === 'phone');
+        }
+
+        async function signInWithGoogle() {
+            if (!firebaseAuth || !firebaseApi) {
+                setAuthStatus('Google sign-in requires firebase-config.json setup.', true);
+                return;
+            }
+
+            try {
+                const provider = new firebaseApi.GoogleAuthProvider();
+                const result = await firebaseApi.signInWithPopup(firebaseAuth, provider);
+                authenticatedUser = result.user;
+                setAuthStatus(`Signed in with ${authenticatedUser.email}`);
+            } catch (error) {
+                setAuthStatus('Google sign-in failed. Try again.', true);
+                console.warn('Google sign-in failed', error);
             }
         }
 
@@ -753,6 +791,10 @@
             const digits = phone.replace(/\D/g, '');
             const withoutCountryCode = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
             return withoutCountryCode.length === 10 ? `+91${withoutCountryCode}` : '';
+        }
+
+        function normalizeEmail(email) {
+            return (email || '').trim().toLowerCase();
         }
 
         function getApprovedPhone(member) {
@@ -886,6 +928,7 @@
             groupData.super_winner_cycle = Array.isArray(groupData.super_winner_cycle) ? groupData.super_winner_cycle : [];
             groupData.participation_change_log = Array.isArray(groupData.participation_change_log) ? groupData.participation_change_log : [];
             groupData.vijay_task_log = Array.isArray(groupData.vijay_task_log) ? groupData.vijay_task_log : [];
+            groupData.member_emails = groupData.member_emails || {};
             groupData.member_phones = groupData.member_phones || {};
             groupData.name_updates = groupData.name_updates || {};
             groupData.name_change_log = Array.isArray(groupData.name_change_log) ? groupData.name_change_log : [];
@@ -1044,6 +1087,8 @@
                     action,
                     details,
                     phoneNumber: authenticatedUser.phoneNumber,
+                    email: authenticatedUser.email,
+                    authMethod,
                     memberName: currentUser?.name || null,
                     createdAt: firebaseApi.serverTimestamp()
                 });
@@ -1060,6 +1105,8 @@
                     ...feedbackItem,
                     ownerUid: authenticatedUser.uid,
                     ownerPhoneNumber: authenticatedUser.phoneNumber,
+                    ownerEmail: authenticatedUser.email,
+                    authMethod,
                     createdAt: firebaseApi.serverTimestamp(),
                     updatedAt: firebaseApi.serverTimestamp()
                 });
@@ -1603,22 +1650,42 @@
                 errorMsg.style.display = 'block';
                 return;
             }
-            if (!authenticatedUser?.phoneNumber) {
-                errorMsg.textContent = "Please verify your WhatsApp phone number first.";
-                errorMsg.style.display = 'block';
-                return;
-            }
             const matchedMember = groupData.members.find(m => m.name.toLowerCase().includes(inputVal));
             if (matchedMember) {
-                const verifiedPhone = normalizePhone(authenticatedUser.phoneNumber);
-                const approvedPhone = getApprovedPhone(matchedMember);
-                if (!approvedPhone || verifiedPhone !== approvedPhone) {
-                    errorMsg.textContent = "Phone authentication failed. Use the WhatsApp number registered for this member.";
-                    errorMsg.style.display = 'block';
-                    return;
+                if (authMethod === 'phone') {
+                    if (!authenticatedUser?.phoneNumber) {
+                        errorMsg.textContent = "Please verify your WhatsApp phone number first.";
+                        errorMsg.style.display = 'block';
+                        return;
+                    }
+
+                    const verifiedPhone = normalizePhone(authenticatedUser.phoneNumber);
+                    const approvedPhone = getApprovedPhone(matchedMember);
+                    if (!approvedPhone || verifiedPhone !== approvedPhone) {
+                        errorMsg.textContent = "Phone authentication failed. Use the WhatsApp number registered for this member.";
+                        errorMsg.style.display = 'block';
+                        return;
+                    }
+
+                    groupData.member_phones[matchedMember.id] = verifiedPhone;
+                } else {
+                    if (!authenticatedUser?.email) {
+                        errorMsg.textContent = "Please sign in with Google first.";
+                        errorMsg.style.display = 'block';
+                        return;
+                    }
+
+                    const verifiedEmail = normalizeEmail(authenticatedUser.email);
+                    const savedEmail = groupData.member_emails[matchedMember.id];
+                    if (savedEmail && savedEmail !== verifiedEmail) {
+                        errorMsg.textContent = "Google authentication failed. Use the same Google account entered first.";
+                        errorMsg.style.display = 'block';
+                        return;
+                    }
+
+                    groupData.member_emails[matchedMember.id] = verifiedEmail;
                 }
 
-                groupData.member_phones[matchedMember.id] = verifiedPhone;
                 saveWinnerState();
 
                 currentUser = matchedMember;
