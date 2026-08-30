@@ -81,9 +81,10 @@
 
         .dashboard {
             display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
             gap: 20px;
             width: 100%;
-            max-width: 640px;
+            max-width: 1100px;
             display: none;
         }
 
@@ -296,6 +297,57 @@
             background-color: rgba(148, 163, 184, 0.18);
             color: var(--text-muted);
         }
+
+        .name-update-panel {
+            margin-top: 20px;
+            padding: 16px;
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        .name-update-panel input {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #0b0f19;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.9rem;
+            margin-top: 8px;
+            padding: 10px;
+        }
+
+        .winner-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .winner-summary {
+            display: grid;
+            gap: 12px;
+        }
+
+        .winner-summary-card {
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .winner-summary-card strong {
+            color: var(--accent);
+            display: block;
+            font-size: 1.1rem;
+            margin-top: 6px;
+        }
+
+        .winner-history-scroll {
+            max-height: 260px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
     </style>
 </head>
 <body>
@@ -342,23 +394,20 @@
                 <p class="admin-message" id="participation-message"></p>
             </div>
 
-            <button id="pick-winner-button" onclick="pickWinner()">Pick Next Winner</button>
+            <div class="name-update-panel" id="name-update-panel">
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Name Update</h2>
+                <p class="admin-note" id="name-update-note">You can update your name only once.</p>
+                <input type="text" id="name-update-input" placeholder="Enter updated name">
+                <button id="name-update-button" onclick="updateUserName()">Update Name</button>
+                <p class="admin-message" id="name-update-message"></p>
+            </div>
 
-            <div class="winner-display">
-                <span style="font-size: 0.85rem; color: var(--text-muted);">Current Selected Winner</span>
-                <p id="winner-name">Ready to draw</p>
-                <p id="winner-details" style="font-size: 0.85rem; color: #cbd5e1; margin: 0;"></p>
-                <p id="winner-date" style="font-size: 0.85rem; color: #cbd5e1; margin: 8px 0 0;"></p>
+            <div class="winner-actions">
+                <button id="pick-chit-winner-button" onclick="pickWinner('chit')">Pick Chit Winner</button>
+                <button id="pick-super-winner-button" onclick="pickWinner('super')">Pick Super Winner</button>
             </div>
 
             <div class="status" id="status-text">Remaining in pool: 6/6</div>
-
-            <div style="margin-top: 20px;">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Picked Winners</h2>
-                <ul class="winner-list" id="winner-history-list">
-                    <li>No winners picked yet.</li>
-                </ul>
-            </div>
 
             <div style="margin-top: 20px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
@@ -389,10 +438,38 @@
                 </table>
             </div>
         </div>
+
+        <div class="card">
+            <h2>Current Winners</h2>
+            <div class="winner-summary">
+                <div class="winner-summary-card">
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Chit Winner</span>
+                    <strong id="chit-winner-name">Ready to draw</strong>
+                    <p id="chit-winner-details" class="admin-note"></p>
+                    <p id="chit-amount-details" class="admin-note"></p>
+                </div>
+                <div class="winner-summary-card">
+                    <span style="font-size: 0.85rem; color: var(--text-muted);">Super Participation Winner</span>
+                    <strong id="super-winner-name">Ready to draw</strong>
+                    <p id="super-winner-details" class="admin-note"></p>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Year Chit Winner History</h2>
+                <div class="winner-history-scroll">
+                    <ul class="winner-list" id="chit-history-list">
+                        <li>No chit winners this year.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         const PICK_INTERVAL_MONTHS = 6;
+        const BASE_CHIT_AMOUNT = 14800;
+        const CHIT_AMOUNT_INCREMENT = 100;
         const STORAGE_KEY = 'seo-group-winner-state';
         const SUPER_ADMIN_KEYWORD = 'vijay';
 
@@ -412,6 +489,14 @@
             current_winner: null,
             remaining_pool_count: 6,
             history: [],
+            chit_winner: null,
+            chit_last_picked_at: null,
+            chit_history: [],
+            chit_winner_cycle: [],
+            super_winner: null,
+            super_last_picked_at: null,
+            super_history: [],
+            super_winner_cycle: [],
             monthly_lot: {
                 month: "2026-09",
                 entry_day: 1,
@@ -419,7 +504,8 @@
                 participants: []
             },
             participation_by_month: {},
-            winner_cycle: []
+            winner_cycle: [],
+            name_updates: {}
         };
 
         let availablePool = [];
@@ -435,6 +521,20 @@
         }
 
         function normalizeMonthlyLot() {
+            if (!groupData.chit_winner && groupData.current_winner) {
+                groupData.chit_winner = groupData.current_winner;
+                groupData.chit_last_picked_at = groupData.last_updated;
+            }
+
+            if (groupData.chit_history.length === 0 && groupData.history.length > 0) {
+                groupData.chit_history = groupData.history.map(winner => ({
+                    ...winner,
+                    selected_at: winner.selected_at || groupData.last_updated,
+                    amount: winner.amount || getChitAmount(groupData.last_updated),
+                    total_amount: winner.total_amount || getChitTotalAmount(groupData.last_updated)
+                }));
+            }
+
             if (!groupData.monthly_lot) {
                 groupData.monthly_lot = {
                     month: "2026-09",
@@ -456,6 +556,25 @@
             );
             groupData.participation_by_month = groupData.participation_by_month || {};
             groupData.winner_cycle = Array.isArray(groupData.winner_cycle) ? groupData.winner_cycle : [];
+            groupData.chit_history = Array.isArray(groupData.chit_history) ? groupData.chit_history : [];
+            groupData.chit_winner_cycle = Array.isArray(groupData.chit_winner_cycle) ? groupData.chit_winner_cycle : [];
+            groupData.super_history = Array.isArray(groupData.super_history) ? groupData.super_history : [];
+            groupData.super_winner_cycle = Array.isArray(groupData.super_winner_cycle) ? groupData.super_winner_cycle : [];
+            groupData.name_updates = groupData.name_updates || {};
+        }
+
+        function getChitAmount(dateValue = groupData.chit_last_picked_at || new Date()) {
+            const date = new Date(dateValue);
+            const monthNumber = Number.isNaN(date.getTime()) ? 1 : date.getMonth() + 1;
+            return BASE_CHIT_AMOUNT + ((monthNumber - 1) * CHIT_AMOUNT_INCREMENT);
+        }
+
+        function getChitTotalAmount(dateValue = groupData.chit_last_picked_at || new Date()) {
+            return getChitAmount(dateValue) * 6;
+        }
+
+        function formatMoney(amount) {
+            return `Rs. ${amount.toLocaleString('en-IN')}`;
         }
 
         function getMonthlyResponses() {
@@ -482,41 +601,69 @@
             return groupData.monthly_lot.participants.filter(participant => responses[participant.id] === true);
         }
 
+        function getWinnerState(type) {
+            return type === 'super'
+                ? {
+                    winnerKey: 'super_winner',
+                    dateKey: 'super_last_picked_at',
+                    historyKey: 'super_history',
+                    cycleKey: 'super_winner_cycle'
+                }
+                : {
+                    winnerKey: 'chit_winner',
+                    dateKey: 'chit_last_picked_at',
+                    historyKey: 'chit_history',
+                    cycleKey: 'chit_winner_cycle'
+                };
+        }
+
         function getEligibleParticipants(options = {}) {
-            const excludeCurrentWinner = options.excludeCurrentWinner ?? false;
+            const excludeWinner = options.excludeWinner || null;
             const confirmedParticipants = getConfirmedParticipants();
             let candidates = confirmedParticipants;
 
-            if (excludeCurrentWinner && groupData.current_winner) {
-                candidates = candidates.filter(participant => participant.id !== groupData.current_winner.id);
+            if (excludeWinner) {
+                candidates = candidates.filter(participant => participant.id !== excludeWinner.id);
             }
 
             return candidates.slice(0, groupData.monthly_lot.max_entries);
         }
 
-        function getWinnerPoolCandidates() {
-            const eligibleParticipants = getEligibleParticipants({ excludeCurrentWinner: true });
-            const selectedWinnerIds = new Set(groupData.winner_cycle);
+        function getWinnerPoolCandidates(type) {
+            const winnerState = getWinnerState(type);
+            const currentWinner = groupData[winnerState.winnerKey];
+            const otherWinner = type === 'super' ? groupData.chit_winner : groupData.super_winner;
+            let eligibleParticipants = getEligibleParticipants({ excludeWinner: currentWinner });
+
+            if (otherWinner) {
+                eligibleParticipants = eligibleParticipants.filter(participant => participant.id !== otherWinner.id);
+            }
+
+            const selectedWinnerIds = new Set(groupData[winnerState.cycleKey]);
             const unpickedParticipants = eligibleParticipants.filter(participant => !selectedWinnerIds.has(participant.id));
 
             if (unpickedParticipants.length > 0) return unpickedParticipants;
 
-            groupData.winner_cycle = groupData.current_winner ? [groupData.current_winner.id] : [];
-            return eligibleParticipants.filter(participant => !groupData.winner_cycle.includes(participant.id));
+            groupData[winnerState.cycleKey] = currentWinner ? [currentWinner.id] : [];
+            return eligibleParticipants.filter(participant => !groupData[winnerState.cycleKey].includes(participant.id));
         }
 
         function isSuperAdmin(member) {
             return member.name.toLowerCase().includes(SUPER_ADMIN_KEYWORD);
         }
 
-        function isCurrentWinner(member) {
-            return Boolean(groupData.current_winner && member && groupData.current_winner.id === member.id);
+        function isCurrentWinner(member, type) {
+            const winnerState = getWinnerState(type);
+            const winner = groupData[winnerState.winnerKey];
+            return Boolean(winner && member && winner.id === member.id);
         }
 
-        function canCurrentUserPick() {
+        function canCurrentUserPick(type) {
             if (!currentUser) return false;
-            if (!groupData.current_winner || groupData.history.length === 0) return isSuperAdmin(currentUser);
-            return isCurrentWinner(currentUser);
+            if (type === 'chit') return isSuperAdmin(currentUser);
+
+            if (!groupData.super_winner || groupData.super_history.length === 0) return isSuperAdmin(currentUser);
+            return isCurrentWinner(currentUser, 'super');
         }
 
         function addMonths(date, months) {
@@ -529,9 +676,12 @@
             return result;
         }
 
-        function getNextPickDate() {
-            if (!groupData.current_winner || !groupData.last_updated) return null;
-            const lastPickDate = new Date(groupData.last_updated);
+        function getNextPickDate(type) {
+            const winnerState = getWinnerState(type);
+            const winner = groupData[winnerState.winnerKey];
+            const pickedAt = groupData[winnerState.dateKey];
+            if (!winner || !pickedAt) return null;
+            const lastPickDate = new Date(pickedAt);
             if (Number.isNaN(lastPickDate.getTime())) return null;
             return addMonths(lastPickDate, PICK_INTERVAL_MONTHS);
         }
@@ -544,27 +694,29 @@
             });
         }
 
-        function getWinnerPickedDate(winner, index) {
-            if (winner.selected_at) return winner.selected_at;
-            if (groupData.current_winner && winner.id === groupData.current_winner.id && index === groupData.history.length - 1) {
-                return groupData.last_updated;
-            }
-            return null;
+        function getWinnerPickedDate(winner) {
+            return winner.selected_at || null;
         }
 
-        function renderWinnerHistory() {
-            const historyList = document.getElementById('winner-history-list');
+        function renderChitHistory() {
+            const historyList = document.getElementById('chit-history-list');
+            const currentYear = new Date().getFullYear();
+            const currentYearHistory = groupData.chit_history.filter(winner => {
+                const pickedDate = new Date(getWinnerPickedDate(winner));
+                return !Number.isNaN(pickedDate.getTime()) && pickedDate.getFullYear() === currentYear;
+            });
+
             historyList.innerHTML = '';
 
-            if (groupData.history.length === 0) {
+            if (currentYearHistory.length === 0) {
                 const emptyItem = document.createElement('li');
-                emptyItem.textContent = 'No winners picked yet.';
+                emptyItem.textContent = 'No chit winners this year.';
                 historyList.appendChild(emptyItem);
                 return;
             }
 
-            groupData.history.forEach((winner, index) => {
-                const pickedDate = getWinnerPickedDate(winner, index);
+            currentYearHistory.forEach(winner => {
+                const pickedDate = getWinnerPickedDate(winner);
                 const listItem = document.createElement('li');
                 const winnerInfo = document.createElement('div');
                 const winnerName = document.createElement('strong');
@@ -572,7 +724,7 @@
                 const dateText = document.createElement('span');
 
                 winnerName.textContent = winner.name;
-                winnerMeta.textContent = `Random ID: ${winner.random_number}`;
+                winnerMeta.textContent = `Chit: ${formatMoney(winner.amount || getChitAmount(pickedDate))} | Total: ${formatMoney(winner.total_amount || getChitTotalAmount(pickedDate))}`;
                 dateText.textContent = pickedDate ? `Picked ${formatDate(new Date(pickedDate))}` : 'Picked date unavailable';
 
                 winnerInfo.appendChild(winnerName);
@@ -584,7 +736,7 @@
         }
 
         function renderEligibleWinners() {
-            const eligibleParticipants = getEligibleParticipants({ excludeCurrentWinner: true });
+            const eligibleParticipants = getEligibleParticipants();
             const tableBody = document.getElementById('eligible-table-body');
             const countText = document.getElementById('eligible-count-text');
 
@@ -603,6 +755,26 @@
                 tableRow.innerHTML = `<td>${participant.name}</td><td>${participant.random_number}</td>`;
                 tableBody.appendChild(tableRow);
             });
+        }
+
+        function renderWinnerCards() {
+            const chitWinner = groupData.chit_winner;
+            const superWinner = groupData.super_winner;
+            const chitAmount = getChitAmount(groupData.chit_last_picked_at || new Date());
+            const totalAmount = getChitTotalAmount(groupData.chit_last_picked_at || new Date());
+
+            document.getElementById('chit-winner-name').textContent = chitWinner ? chitWinner.name : 'Ready to draw';
+            document.getElementById('chit-winner-details').textContent = chitWinner && groupData.chit_last_picked_at
+                ? `Picked ${formatDate(new Date(groupData.chit_last_picked_at))}`
+                : 'Vijay selects the chit winner.';
+            document.getElementById('chit-amount-details').textContent = chitWinner
+                ? `Chit amount: ${formatMoney(chitAmount)} | Total: ${formatMoney(totalAmount)}`
+                : `This month chit amount: ${formatMoney(getChitAmount())} | Total: ${formatMoney(getChitTotalAmount())}`;
+
+            document.getElementById('super-winner-name').textContent = superWinner ? superWinner.name : 'Ready to draw';
+            document.getElementById('super-winner-details').textContent = superWinner && groupData.super_last_picked_at
+                ? `Picked ${formatDate(new Date(groupData.super_last_picked_at))}`
+                : 'First super winner is picked by Vijay. After that, the previous super winner picks next.';
         }
 
         function renderAdminPanel() {
@@ -653,44 +825,73 @@
             }
         }
 
-        function renderWinnerState() {
-            const pickButton = document.getElementById('pick-winner-button');
-            const nextPickDate = getNextPickDate();
-            const winner = groupData.current_winner;
+        function renderNameUpdatePanel() {
+            const nameInput = document.getElementById('name-update-input');
+            const nameButton = document.getElementById('name-update-button');
+            const nameNote = document.getElementById('name-update-note');
+            const nameMessage = document.getElementById('name-update-message');
 
-            if (winner) {
-                document.getElementById('winner-name').textContent = winner.name;
-                document.getElementById('winner-details').textContent = `Number: ${winner.random_number} | Contact: ${winner.contact}`;
-                document.getElementById('winner-date').textContent = `Picked on ${formatDate(new Date(groupData.last_updated))}`;
+            if (!currentUser) return;
+
+            nameInput.value = currentUser.name;
+            if (groupData.name_updates[currentUser.id]) {
+                nameInput.disabled = true;
+                nameButton.disabled = true;
+                nameNote.textContent = 'Your one-time name update has already been used.';
+                nameMessage.style.color = 'var(--text-muted)';
+                nameMessage.textContent = 'Name update locked.';
             } else {
-                document.getElementById('winner-date').textContent = '';
+                nameInput.disabled = false;
+                nameButton.disabled = false;
+                nameNote.textContent = 'You can update your name only once.';
+                nameMessage.textContent = '';
+            }
+        }
+
+        function setPickButtonState(button, type) {
+            const nextPickDate = getNextPickDate(type);
+            const winnerState = getWinnerState(type);
+            const winner = groupData[winnerState.winnerKey];
+            const poolCandidates = getWinnerPoolCandidates(type);
+            const label = type === 'super' ? 'Super Winner' : 'Chit Winner';
+
+            if (nextPickDate && new Date() < nextPickDate) {
+                button.disabled = true;
+                button.textContent = `${label}: ${formatDate(nextPickDate)}`;
+                return;
             }
 
-            const eligibleParticipants = getEligibleParticipants({ excludeCurrentWinner: true });
+            if (!canCurrentUserPick(type)) {
+                button.disabled = true;
+                button.textContent = type === 'chit'
+                    ? 'Only Vijay can pick chit winner'
+                    : winner ? `Only ${winner.name} can pick super` : 'Only Vijay can pick first super';
+                return;
+            }
+
+            if (poolCandidates.length === 0) {
+                button.disabled = true;
+                button.textContent = `No eligible ${label.toLowerCase()}s`;
+                return;
+            }
+
+            button.disabled = false;
+            button.textContent = `Pick ${label}`;
+        }
+
+        function renderWinnerState() {
+            normalizeMonthlyLot();
+            const eligibleParticipants = getEligibleParticipants();
             groupData.remaining_pool_count = eligibleParticipants.length;
             document.getElementById('status-text').textContent = `Eligible surprise winners: ${eligibleParticipants.length}/${groupData.monthly_lot.participants.length}`;
             renderEligibleWinners();
-            renderWinnerHistory();
+            renderWinnerCards();
+            renderChitHistory();
             renderAdminPanel();
             renderParticipationPanel();
-
-            if (nextPickDate && new Date() < nextPickDate) {
-                pickButton.disabled = true;
-                pickButton.textContent = `Next pick available ${formatDate(nextPickDate)}`;
-                document.getElementById('status-text').textContent = `Winner already picked. Next pick available on ${formatDate(nextPickDate)}.`;
-            } else if (!canCurrentUserPick()) {
-                pickButton.disabled = true;
-                pickButton.textContent = groupData.current_winner ? 'Only current winner can pick next' : 'Only Vijay can pick first winner';
-                document.getElementById('status-text').textContent = groupData.current_winner
-                    ? `Only ${groupData.current_winner.name} can select the next winner.`
-                    : 'Vijay must pick the first winner.';
-            } else if (eligibleParticipants.length === 0) {
-                pickButton.disabled = true;
-                pickButton.textContent = 'No eligible winners yet';
-            } else {
-                pickButton.disabled = false;
-                pickButton.textContent = 'Pick Next Winner';
-            }
+            renderNameUpdatePanel();
+            setPickButtonState(document.getElementById('pick-chit-winner-button'), 'chit');
+            setPickButtonState(document.getElementById('pick-super-winner-button'), 'super');
         }
 
         function saveWinnerState() {
@@ -725,11 +926,23 @@
             }
         }
 
-        function initPool() {
-            availablePool = [...getWinnerPoolCandidates()];
-            for (let poolIndex = availablePool.length - 1; poolIndex > 0; poolIndex--) {
-                const swapIndex = Math.floor(Math.random() * (poolIndex + 1));
-                [availablePool[poolIndex], availablePool[swapIndex]] = [availablePool[swapIndex], availablePool[poolIndex]];
+        function getRandomWinner(type) {
+            const candidates = getWinnerPoolCandidates(type);
+            if (candidates.length === 0) return null;
+            return candidates[Math.floor(Math.random() * candidates.length)];
+        }
+
+        function updateMemberName(list, memberId, updatedName) {
+            list.forEach(member => {
+                if (member.id === memberId) {
+                    member.name = updatedName;
+                }
+            });
+        }
+
+        function updateWinnerName(winner, memberId, updatedName) {
+            if (winner && winner.id === memberId) {
+                winner.name = updatedName;
             }
         }
 
@@ -752,7 +965,6 @@
                 document.getElementById('main-dashboard').style.display = 'grid';
                 document.getElementById('welcome-user-text').textContent = `Logged in as: ${matchedMember.name}`;
                 renderRoster();
-                initPool();
                 renderWinnerState();
             } else {
                 errorMsg.textContent = "Name not found in group roster. Try again.";
@@ -817,6 +1029,37 @@
             adminMessage.textContent = `Saved ${participants.length} participants. ${groupData.monthly_lot.max_entries} are eligible for the lot.`;
         }
 
+        function updateUserName() {
+            if (!currentUser || groupData.name_updates[currentUser.id]) return;
+
+            const updatedName = document.getElementById('name-update-input').value.trim();
+            const nameMessage = document.getElementById('name-update-message');
+
+            if (!updatedName) {
+                nameMessage.style.color = 'var(--error)';
+                nameMessage.textContent = 'Enter a valid name.';
+                return;
+            }
+
+            if (!window.confirm('Confirm your one-time name update? This cannot be changed again.')) {
+                return;
+            }
+
+            updateMemberName(groupData.members, currentUser.id, updatedName);
+            updateMemberName(groupData.monthly_lot.participants, currentUser.id, updatedName);
+            updateMemberName(groupData.chit_history, currentUser.id, updatedName);
+            updateMemberName(groupData.super_history, currentUser.id, updatedName);
+            updateWinnerName(groupData.chit_winner, currentUser.id, updatedName);
+            updateWinnerName(groupData.super_winner, currentUser.id, updatedName);
+            currentUser.name = updatedName;
+            groupData.name_updates[currentUser.id] = new Date().toISOString();
+
+            saveWinnerState();
+            document.getElementById('welcome-user-text').textContent = `Logged in as: ${currentUser.name}`;
+            renderRoster();
+            renderWinnerState();
+        }
+
         function confirmParticipation(wantsToJoin) {
             const participant = getCurrentUserParticipant();
             const responseText = wantsToJoin ? 'join' : 'skip';
@@ -837,34 +1080,49 @@
             renderWinnerState();
         }
 
-        function pickWinner() {
-            const nextPickDate = getNextPickDate();
+        function pickWinner(type) {
+            const nextPickDate = getNextPickDate(type);
+            const winnerState = getWinnerState(type);
             if (nextPickDate && new Date() < nextPickDate) {
-                document.getElementById('status-text').textContent = `Winner already picked. Next pick available on ${formatDate(nextPickDate)}.`;
+                document.getElementById('status-text').textContent = `${type === 'super' ? 'Super' : 'Chit'} winner already picked. Next pick available on ${formatDate(nextPickDate)}.`;
                 return;
             }
 
-            if (!canCurrentUserPick()) {
-                document.getElementById('status-text').textContent = groupData.current_winner
-                    ? `Only ${groupData.current_winner.name} can select the next winner.`
-                    : 'Vijay must pick the first winner.';
+            if (!canCurrentUserPick(type)) {
+                const currentWinner = groupData[winnerState.winnerKey];
+                document.getElementById('status-text').textContent = type === 'chit'
+                    ? 'Only Vijay can select the chit winner.'
+                    : currentWinner ? `Only ${currentWinner.name} can select the next super winner.` : 'Vijay must pick the first super winner.';
                 return;
             }
 
-            if (getWinnerPoolCandidates().length === 0) {
+            const selectedWinner = getRandomWinner(type);
+            if (!selectedWinner) {
                 document.getElementById('status-text').textContent = 'No eligible participants. Vijay must enter this month\'s participants first.';
                 return;
             }
 
-            if (availablePool.length === 0) {
-                initPool();
+            const selectedAt = new Date().toISOString();
+            const winnerRecord = {
+                ...selectedWinner,
+                selected_at: selectedAt
+            };
+
+            if (type === 'chit') {
+                winnerRecord.amount = getChitAmount(selectedAt);
+                winnerRecord.total_amount = getChitTotalAmount(selectedAt);
             }
-            groupData.current_winner = availablePool.pop();
-            groupData.last_updated = new Date().toISOString();
-            groupData.current_winner.selected_at = groupData.last_updated;
-            groupData.history.push(groupData.current_winner);
-            groupData.winner_cycle.push(groupData.current_winner.id);
-            groupData.remaining_pool_count = availablePool.length;
+
+            groupData[winnerState.winnerKey] = winnerRecord;
+            groupData[winnerState.dateKey] = selectedAt;
+            groupData[winnerState.historyKey].push(winnerRecord);
+            groupData[winnerState.cycleKey].push(winnerRecord.id);
+
+            if (type === 'chit') {
+                groupData.current_winner = winnerRecord;
+                groupData.last_updated = selectedAt;
+                groupData.history = groupData.chit_history;
+            }
 
             saveWinnerState();
             renderWinnerState();
