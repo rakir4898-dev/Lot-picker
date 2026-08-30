@@ -261,6 +261,20 @@
             border-radius: 8px;
         }
 
+        .participation-panel textarea {
+            width: 100%;
+            box-sizing: border-box;
+            background-color: #0b0f19;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.9rem;
+            margin-top: 8px;
+            min-height: 90px;
+            padding: 10px;
+            resize: vertical;
+        }
+
         .choice-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -348,6 +362,52 @@
             overflow-y: auto;
             padding-right: 4px;
         }
+
+        .tab-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .tab-button {
+            background-color: #334155;
+            margin-top: 0;
+            padding: 10px;
+        }
+
+        .tab-button.active {
+            background-color: var(--primary);
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .metric-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: 12px;
+        }
+
+        .metric-card {
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .metric-card strong {
+            color: var(--accent);
+            display: block;
+            font-size: 1.25rem;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -367,12 +427,53 @@
             <h1>SEO Group Selector</h1>
             <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;" id="welcome-user-text">Welcome!</p>
 
+            <div class="tab-buttons">
+                <button class="tab-button active" id="user-tab-button" onclick="showTab('user')">User</button>
+                <button class="tab-button" id="admin-tab-button" onclick="showTab('admin')">Super Admin</button>
+                <button class="tab-button" id="dashboard-tab-button" onclick="showTab('dashboard')">Dashboard</button>
+            </div>
+
+            <div class="tab-panel active" id="user-tab-panel">
+                <div class="participation-panel" id="participation-panel">
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Month Lottery</h2>
+                    <p class="admin-note" id="participation-note">Confirm whether you want to be part of this month lottery selection.</p>
+                    <div class="choice-buttons">
+                        <button id="participation-yes-button" onclick="confirmParticipation(true)">Yes, include me</button>
+                        <button id="participation-no-button" onclick="confirmParticipation(false)">No, skip me</button>
+                    </div>
+                    <p class="admin-message" id="participation-message"></p>
+                </div>
+
+                <div class="name-update-panel" id="name-update-panel">
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Name Update</h2>
+                    <p class="admin-note" id="name-update-note">You can update your name only once.</p>
+                    <input type="text" id="name-update-input" placeholder="Enter updated name">
+                    <button id="name-update-button" onclick="updateUserName()">Update Name</button>
+                    <p class="admin-message" id="name-update-message"></p>
+                </div>
+
+                <div class="participation-panel" id="feedback-panel">
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Feedback</h2>
+                    <p class="admin-note">Share a suggestion for the lottery process.</p>
+                    <textarea id="feedback-input" placeholder="Enter your feedback or suggestion"></textarea>
+                    <button onclick="submitFeedback()">Submit Feedback</button>
+                    <p class="admin-message" id="feedback-message"></p>
+                </div>
+            </div>
+
+            <div class="tab-panel" id="admin-tab-panel">
             <div class="admin-panel" id="super-admin-panel">
                 <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Super Admin Monthly Entry</h2>
                 <p class="admin-note" id="admin-day-note">Vijay enters the monthly participant list on day 1.</p>
 
                 <label for="lot-month-input">Month</label>
                 <input type="month" id="lot-month-input">
+
+                <label for="participation-start-input">Participation start date</label>
+                <input type="date" id="participation-start-input">
+
+                <label for="participation-end-input">Participation end date</label>
+                <input type="date" id="participation-end-input">
 
                 <label for="max-entries-input">Max eligible entries for winner lot</label>
                 <input type="number" id="max-entries-input" min="1" step="1">
@@ -383,7 +484,7 @@
                 <label for="participants-input">Participants</label>
                 <textarea id="participants-input" placeholder="One participant per line. Optional format: Name | Random ID | Contact"></textarea>
 
-                <button onclick="saveMonthlyParticipants()">Save Monthly Participants</button>
+                <button id="save-monthly-button" onclick="saveMonthlyParticipants()">Save Monthly Participants</button>
                 <p class="admin-message" id="admin-message"></p>
 
                 <div style="margin-top: 18px;">
@@ -398,23 +499,21 @@
                     </table>
                 </div>
             </div>
-
-            <div class="participation-panel" id="participation-panel">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Current Month Lottery</h2>
-                <p class="admin-note" id="participation-note">Confirm whether you want to be part of this month lottery selection.</p>
-                <div class="choice-buttons">
-                    <button onclick="confirmParticipation(true)">Yes, include me</button>
-                    <button onclick="confirmParticipation(false)">No, skip me</button>
-                </div>
-                <p class="admin-message" id="participation-message"></p>
             </div>
 
-            <div class="name-update-panel" id="name-update-panel">
-                <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Name Update</h2>
-                <p class="admin-note" id="name-update-note">You can update your name only once.</p>
-                <input type="text" id="name-update-input" placeholder="Enter updated name">
-                <button id="name-update-button" onclick="updateUserName()">Update Name</button>
-                <p class="admin-message" id="name-update-message"></p>
+            <div class="tab-panel" id="dashboard-tab-panel">
+                <div class="participation-panel" id="prabu-dashboard-panel">
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Participation Dashboard</h2>
+                    <div class="metric-grid" id="dashboard-metrics"></div>
+                    <p class="admin-note" id="vijay-activity-summary"></p>
+                </div>
+
+                <div class="participation-panel" id="feedback-review-panel">
+                    <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);">Feedback Review</h2>
+                    <ul class="winner-list" id="feedback-review-list">
+                        <li>No feedback yet.</li>
+                    </ul>
+                </div>
             </div>
 
             <div class="winner-actions">
@@ -503,7 +602,10 @@
         const BASE_CHIT_AMOUNT = 14800;
         const CHIT_AMOUNT_INCREMENT = 100;
         const STORAGE_KEY = 'seo-group-winner-state';
+        const FEEDBACK_STORAGE_KEY = 'seo-group-feedback-json';
         const SUPER_ADMIN_KEYWORD = 'vijay';
+        const DASHBOARD_ADMIN_KEYWORD = 'prabu';
+        const MAX_PARTICIPATION_CHANGES = 2;
 
         const groupData = {
             last_updated: "2026-09-01T00:00:00Z",
@@ -537,22 +639,56 @@
             monthly_lot: {
                 month: "2026-09",
                 entry_day: 1,
+                participation_start: "2026-09-01",
+                participation_end: "2026-09-30",
                 max_entries: 6,
                 chit_amount: 15600,
                 participants: []
             },
             participation_by_month: {},
+            participation_change_log: [],
+            vijay_task_log: [],
             winner_cycle: [],
             name_updates: {},
             name_change_log: []
         };
 
+        const feedbackData = {
+            feedback: []
+        };
+
         let availablePool = [];
         let currentUser = null;
+        let activeTab = 'user';
 
         function getCurrentMonthValue() {
             const today = new Date();
             return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        function getMonthStartDate(monthValue) {
+            return `${monthValue}-01`;
+        }
+
+        function getMonthEndDate(monthValue) {
+            const [year, month] = monthValue.split('-').map(Number);
+            const endDate = new Date(year, month, 0);
+            return `${year}-${String(month).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+        }
+
+        function parseLocalDate(dateValue, endOfDay = false) {
+            if (!dateValue) return null;
+            const [year, month, day] = dateValue.split('-').map(Number);
+            if (!year || !month || !day) return null;
+            return new Date(year, month - 1, day, endOfDay ? 23 : 0, endOfDay ? 59 : 0, endOfDay ? 59 : 0, endOfDay ? 999 : 0);
+        }
+
+        function isParticipationWindowOpen() {
+            normalizeMonthlyLot();
+            const startDate = parseLocalDate(groupData.monthly_lot.participation_start);
+            const endDate = parseLocalDate(groupData.monthly_lot.participation_end, true);
+            const now = new Date();
+            return (!startDate || now >= startDate) && (!endDate || now <= endDate);
         }
 
         function getDefaultParticipants() {
@@ -585,6 +721,8 @@
 
             groupData.monthly_lot.month = groupData.monthly_lot.month || getCurrentMonthValue();
             groupData.monthly_lot.chit_amount = Number(groupData.monthly_lot.chit_amount) || getChitAmount(groupData.monthly_lot.month);
+            groupData.monthly_lot.participation_start = groupData.monthly_lot.participation_start || getMonthStartDate(groupData.monthly_lot.month);
+            groupData.monthly_lot.participation_end = groupData.monthly_lot.participation_end || getMonthEndDate(groupData.monthly_lot.month);
 
             if (!Array.isArray(groupData.monthly_lot.participants) || groupData.monthly_lot.participants.length === 0) {
                 groupData.monthly_lot.participants = getDefaultParticipants();
@@ -600,6 +738,8 @@
             groupData.chit_winner_cycle = Array.isArray(groupData.chit_winner_cycle) ? groupData.chit_winner_cycle : [];
             groupData.super_history = Array.isArray(groupData.super_history) ? groupData.super_history : [];
             groupData.super_winner_cycle = Array.isArray(groupData.super_winner_cycle) ? groupData.super_winner_cycle : [];
+            groupData.participation_change_log = Array.isArray(groupData.participation_change_log) ? groupData.participation_change_log : [];
+            groupData.vijay_task_log = Array.isArray(groupData.vijay_task_log) ? groupData.vijay_task_log : [];
             groupData.name_updates = groupData.name_updates || {};
             groupData.name_change_log = Array.isArray(groupData.name_change_log) ? groupData.name_change_log : [];
         }
@@ -631,7 +771,23 @@
         }
 
         function getParticipationResponse(memberId) {
-            return getMonthlyResponses()[memberId];
+            const response = getMonthlyResponses()[memberId];
+            if (typeof response === 'boolean') return response;
+            return response?.value;
+        }
+
+        function getParticipationRecord(memberId) {
+            const responses = getMonthlyResponses();
+            const response = responses[memberId];
+            if (typeof response === 'boolean') {
+                responses[memberId] = {
+                    value: response,
+                    changes: 0,
+                    updated_at: null
+                };
+                return responses[memberId];
+            }
+            return response || null;
         }
 
         function getCurrentUserParticipant() {
@@ -643,8 +799,7 @@
         }
 
         function getConfirmedParticipants() {
-            const responses = getMonthlyResponses();
-            return groupData.monthly_lot.participants.filter(participant => responses[participant.id] === true);
+            return groupData.monthly_lot.participants.filter(participant => getParticipationResponse(participant.id) === true);
         }
 
         function getWinnerState(type) {
@@ -695,7 +850,38 @@
         }
 
         function isSuperAdmin(member) {
-            return member.name.toLowerCase().includes(SUPER_ADMIN_KEYWORD);
+            const memberName = member.name.toLowerCase();
+            return memberName.includes(SUPER_ADMIN_KEYWORD) || memberName.includes(DASHBOARD_ADMIN_KEYWORD);
+        }
+
+        function isVijay(member) {
+            return Boolean(member && member.name.toLowerCase().includes(SUPER_ADMIN_KEYWORD));
+        }
+
+        function isPrabu(member) {
+            return Boolean(member && member.name.toLowerCase().includes(DASHBOARD_ADMIN_KEYWORD));
+        }
+
+        function recordVijayTask(action) {
+            if (!isVijay(currentUser)) return;
+            groupData.vijay_task_log.push({
+                action,
+                month: groupData.monthly_lot.month,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function loadFeedbackData() {
+            try {
+                const savedFeedback = JSON.parse(localStorage.getItem(FEEDBACK_STORAGE_KEY));
+                feedbackData.feedback = Array.isArray(savedFeedback?.feedback) ? savedFeedback.feedback : [];
+            } catch (error) {
+                feedbackData.feedback = [];
+            }
+        }
+
+        function saveFeedbackData() {
+            localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(feedbackData));
         }
 
         function isCurrentWinner(member, type) {
@@ -931,19 +1117,135 @@
 
             adminPanel.style.display = 'block';
             document.getElementById('lot-month-input').value = groupData.monthly_lot.month;
+            document.getElementById('participation-start-input').value = groupData.monthly_lot.participation_start;
+            document.getElementById('participation-end-input').value = groupData.monthly_lot.participation_end;
             document.getElementById('max-entries-input').value = groupData.monthly_lot.max_entries;
             document.getElementById('chit-amount-input').value = getChitAmount(groupData.monthly_lot.month);
             document.getElementById('participants-input').value = participantLines.join('\n');
             document.getElementById('admin-day-note').textContent = today.getDate() === groupData.monthly_lot.entry_day
                 ? 'Today is day 1. Enter this month\'s participants now.'
                 : `Monthly participants are expected on day ${groupData.monthly_lot.entry_day}.`;
+            ['lot-month-input', 'participation-start-input', 'participation-end-input', 'max-entries-input', 'chit-amount-input', 'participants-input', 'save-monthly-button'].forEach(id => {
+                document.getElementById(id).disabled = !isVijay(currentUser);
+            });
             renderAdminYesParticipants();
+        }
+
+        function showTab(tabName) {
+            activeTab = tabName;
+            ['user', 'admin', 'dashboard'].forEach(name => {
+                document.getElementById(`${name}-tab-panel`).classList.toggle('active', name === tabName);
+                document.getElementById(`${name}-tab-button`).classList.toggle('active', name === tabName);
+            });
+        }
+
+        function configureTabs() {
+            const adminButton = document.getElementById('admin-tab-button');
+            const dashboardButton = document.getElementById('dashboard-tab-button');
+
+            adminButton.style.display = currentUser && isSuperAdmin(currentUser) ? 'block' : 'none';
+            dashboardButton.style.display = currentUser && isPrabu(currentUser) ? 'block' : 'none';
+
+            if (activeTab === 'admin' && adminButton.style.display === 'none') activeTab = 'user';
+            if (activeTab === 'dashboard' && dashboardButton.style.display === 'none') activeTab = 'user';
+            showTab(activeTab);
+        }
+
+        function createMetric(label, value) {
+            const metric = document.createElement('div');
+            const metricLabel = document.createElement('span');
+            const metricValue = document.createElement('strong');
+
+            metric.className = 'metric-card';
+            metricLabel.textContent = label;
+            metricValue.textContent = value;
+            metric.appendChild(metricLabel);
+            metric.appendChild(metricValue);
+            return metric;
+        }
+
+        function renderPrabuDashboard() {
+            const dashboardPanel = document.getElementById('prabu-dashboard-panel');
+            const metrics = document.getElementById('dashboard-metrics');
+            const vijaySummary = document.getElementById('vijay-activity-summary');
+
+            if (!currentUser || !isPrabu(currentUser)) {
+                dashboardPanel.style.display = 'none';
+                return;
+            }
+
+            const participants = groupData.monthly_lot.participants;
+            const yesCount = participants.filter(participant => getParticipationResponse(participant.id) === true).length;
+            const noCount = participants.filter(participant => getParticipationResponse(participant.id) === false).length;
+            const pendingCount = participants.length - yesCount - noCount;
+            const activeRate = participants.length ? Math.round((yesCount / participants.length) * 100) : 0;
+            const latestVijayTask = groupData.vijay_task_log[groupData.vijay_task_log.length - 1];
+
+            dashboardPanel.style.display = 'block';
+            metrics.innerHTML = '';
+            metrics.appendChild(createMetric('Users participating', String(yesCount)));
+            metrics.appendChild(createMetric('Users not participating', String(noCount)));
+            metrics.appendChild(createMetric('Pending users', String(pendingCount)));
+            metrics.appendChild(createMetric('Active rate', `${activeRate}%`));
+            metrics.appendChild(createMetric('Vijay task count', String(groupData.vijay_task_log.length)));
+            metrics.appendChild(createMetric('Feedback open', String(feedbackData.feedback.filter(item => item.status === 'open').length)));
+
+            vijaySummary.textContent = latestVijayTask
+                ? `Latest Vijay task: ${latestVijayTask.action} on ${formatDate(new Date(latestVijayTask.timestamp))}.`
+                : 'No Vijay task activity recorded yet.';
+        }
+
+        function renderFeedbackReview() {
+            const reviewPanel = document.getElementById('feedback-review-panel');
+            const reviewList = document.getElementById('feedback-review-list');
+
+            if (!currentUser || !isPrabu(currentUser)) {
+                reviewPanel.style.display = 'none';
+                return;
+            }
+
+            reviewPanel.style.display = 'block';
+            reviewList.innerHTML = '';
+
+            if (feedbackData.feedback.length === 0) {
+                const emptyItem = document.createElement('li');
+                emptyItem.textContent = 'No feedback yet.';
+                reviewList.appendChild(emptyItem);
+                return;
+            }
+
+            feedbackData.feedback.forEach(item => {
+                const listItem = document.createElement('li');
+                const feedbackInfo = document.createElement('div');
+                const feedbackTitle = document.createElement('strong');
+                const feedbackMeta = document.createElement('small');
+                const statusSelect = document.createElement('select');
+
+                feedbackTitle.textContent = item.message;
+                feedbackMeta.textContent = `${item.name} | ${formatDate(new Date(item.created_at))}`;
+                ['open', 'accepted', 'resolved', 'deferred'].forEach(status => {
+                    const option = document.createElement('option');
+                    option.value = status;
+                    option.textContent = status;
+                    option.selected = item.status === status;
+                    statusSelect.appendChild(option);
+                });
+                statusSelect.onchange = () => updateFeedbackStatus(item.id, statusSelect.value);
+
+                feedbackInfo.appendChild(feedbackTitle);
+                feedbackInfo.appendChild(feedbackMeta);
+                listItem.appendChild(feedbackInfo);
+                listItem.appendChild(statusSelect);
+                reviewList.appendChild(listItem);
+            });
         }
 
         function renderParticipationPanel() {
             const participationPanel = document.getElementById('participation-panel');
             const participationNote = document.getElementById('participation-note');
             const participationMessage = document.getElementById('participation-message');
+            const yesButton = document.getElementById('participation-yes-button');
+            const noButton = document.getElementById('participation-no-button');
             const participant = getCurrentUserParticipant();
 
             if (!currentUser || !participant) {
@@ -951,19 +1253,28 @@
                 return;
             }
 
+            const responseRecord = getParticipationRecord(participant.id);
             const response = getParticipationResponse(participant.id);
+            const changesUsed = responseRecord?.changes || 0;
+            const changesLeft = Math.max(0, MAX_PARTICIPATION_CHANGES - changesUsed);
+            const windowOpen = isParticipationWindowOpen();
             participationPanel.style.display = 'block';
-            participationNote.textContent = `Month: ${groupData.monthly_lot.month}. Confirm whether you want to be part of this month lottery selection.`;
+            participationNote.textContent = `Month: ${groupData.monthly_lot.month}. Participation is open from ${formatDate(parseLocalDate(groupData.monthly_lot.participation_start))} to ${formatDate(parseLocalDate(groupData.monthly_lot.participation_end))}.`;
+            yesButton.disabled = !windowOpen || changesLeft === 0;
+            noButton.disabled = !windowOpen || changesLeft === 0;
 
             if (response === true) {
                 participationMessage.style.color = 'var(--accent)';
-                participationMessage.textContent = 'Your response is saved: Yes, include me.';
+                participationMessage.textContent = `Your response is saved: Yes, include me. Changes left this month: ${changesLeft}.`;
             } else if (response === false) {
                 participationMessage.style.color = 'var(--error)';
-                participationMessage.textContent = 'Your response is saved: No, skip me.';
+                participationMessage.textContent = `Your response is saved: No, skip me. Changes left this month: ${changesLeft}.`;
+            } else if (!windowOpen) {
+                participationMessage.style.color = 'var(--error)';
+                participationMessage.textContent = 'Participation is closed for this month.';
             } else {
                 participationMessage.style.color = 'var(--text-muted)';
-                participationMessage.textContent = 'No response saved for this month yet.';
+                participationMessage.textContent = `No response saved for this month yet. Changes left this month: ${changesLeft}.`;
             }
         }
 
@@ -1038,6 +1349,9 @@
             renderAdminPanel();
             renderParticipationPanel();
             renderNameUpdatePanel();
+            renderPrabuDashboard();
+            renderFeedbackReview();
+            configureTabs();
             setPickButtonState(document.getElementById('pick-chit-winner-button'), 'chit');
             setPickButtonState(document.getElementById('pick-super-winner-button'), 'super');
         }
@@ -1059,6 +1373,7 @@
 
         async function loadWinnerState() {
             try {
+                loadFeedbackData();
                 const localData = JSON.parse(localStorage.getItem(STORAGE_KEY));
                 const latestData = getLatestWinnerState(groupData, localData);
 
@@ -1110,6 +1425,7 @@
                 document.getElementById('auth-modal').style.display = 'none';
                 document.getElementById('main-dashboard').style.display = 'grid';
                 document.getElementById('welcome-user-text').textContent = `Logged in as: ${matchedMember.name}`;
+                activeTab = 'user';
                 renderRoster();
                 renderWinnerState();
             } else {
@@ -1142,6 +1458,12 @@
         }
 
         function saveMonthlyParticipants() {
+            if (!isVijay(currentUser)) {
+                document.getElementById('admin-message').style.color = 'var(--error)';
+                document.getElementById('admin-message').textContent = 'Only Vijay can update monthly participants and chit amount.';
+                return;
+            }
+
             const participantLines = document.getElementById('participants-input').value
                 .split('\n')
                 .map(line => line.trim())
@@ -1157,10 +1479,13 @@
             const participants = participantLines.map(parseParticipantLine);
             const requestedMaxEntries = Number(document.getElementById('max-entries-input').value) || participants.length;
             const requestedChitAmount = Number(document.getElementById('chit-amount-input').value) || getChitAmount(groupData.monthly_lot.month);
+            const month = document.getElementById('lot-month-input').value || groupData.monthly_lot.month;
 
             groupData.monthly_lot = {
-                month: document.getElementById('lot-month-input').value || groupData.monthly_lot.month,
+                month,
                 entry_day: 1,
+                participation_start: document.getElementById('participation-start-input').value || getMonthStartDate(month),
+                participation_end: document.getElementById('participation-end-input').value || getMonthEndDate(month),
                 max_entries: Math.max(1, Math.min(requestedMaxEntries, participants.length)),
                 chit_amount: requestedChitAmount,
                 participants
@@ -1168,6 +1493,7 @@
             groupData.billing_cycle = groupData.monthly_lot.month;
             groupData.members = participants;
             availablePool = [];
+            recordVijayTask('Updated monthly participants and chit amount');
 
             saveWinnerState();
             renderRoster();
@@ -1175,6 +1501,49 @@
 
             adminMessage.style.color = 'var(--accent)';
             adminMessage.textContent = `Saved ${participants.length} participants. ${groupData.monthly_lot.max_entries} are eligible. Chit amount is ${formatMoney(requestedChitAmount)}.`;
+        }
+
+        function submitFeedback() {
+            const feedbackInput = document.getElementById('feedback-input');
+            const feedbackMessage = document.getElementById('feedback-message');
+            const message = feedbackInput.value.trim();
+
+            if (!currentUser) return;
+
+            if (!message) {
+                feedbackMessage.style.color = 'var(--error)';
+                feedbackMessage.textContent = 'Enter feedback before submitting.';
+                return;
+            }
+
+            feedbackData.feedback.push({
+                id: `${Date.now()}-${currentUser.id}`,
+                member_id: currentUser.id,
+                name: currentUser.name,
+                message,
+                status: 'open',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            });
+            saveFeedbackData();
+            feedbackInput.value = '';
+            feedbackMessage.style.color = 'var(--accent)';
+            feedbackMessage.textContent = 'Feedback submitted.';
+            renderPrabuDashboard();
+            renderFeedbackReview();
+        }
+
+        function updateFeedbackStatus(feedbackId, status) {
+            if (!currentUser || !isPrabu(currentUser)) return;
+
+            const feedbackItem = feedbackData.feedback.find(item => item.id === feedbackId);
+            if (!feedbackItem) return;
+
+            feedbackItem.status = status;
+            feedbackItem.updated_at = new Date().toISOString();
+            saveFeedbackData();
+            renderPrabuDashboard();
+            renderFeedbackReview();
         }
 
         function updateUserName() {
@@ -1226,12 +1595,41 @@
                 return;
             }
 
+            if (!isParticipationWindowOpen()) {
+                document.getElementById('participation-message').style.color = 'var(--error)';
+                document.getElementById('participation-message').textContent = 'Participation is closed for this month.';
+                return;
+            }
+
+            const previousRecord = getParticipationRecord(participant.id);
+            const previousValue = previousRecord?.value;
+            const changesUsed = previousRecord?.changes || 0;
+
+            if (previousValue !== undefined && previousValue !== wantsToJoin && changesUsed >= MAX_PARTICIPATION_CHANGES) {
+                document.getElementById('participation-message').style.color = 'var(--error)';
+                document.getElementById('participation-message').textContent = 'You already changed your response twice this month.';
+                return;
+            }
+
             if (!window.confirm(`Confirm that you want to ${responseText} the ${groupData.monthly_lot.month} lottery selection?`)) {
                 return;
             }
 
             const responses = getMonthlyResponses();
-            responses[participant.id] = wantsToJoin;
+            const changed = previousValue !== undefined && previousValue !== wantsToJoin;
+            responses[participant.id] = {
+                value: wantsToJoin,
+                changes: changed ? changesUsed + 1 : changesUsed,
+                updated_at: new Date().toISOString()
+            };
+            groupData.participation_change_log.push({
+                id: participant.id,
+                name: participant.name,
+                month: groupData.monthly_lot.month,
+                response: wantsToJoin ? 'yes' : 'no',
+                changed,
+                updated_at: responses[participant.id].updated_at
+            });
             availablePool = [];
             saveWinnerState();
             renderWinnerState();
@@ -1286,6 +1684,7 @@
                 groupData.current_winner = winnerRecord;
                 groupData.last_updated = selectedAt;
                 groupData.history = groupData.chit_history;
+                recordVijayTask('Picked chit winner');
             } else {
                 groupData.super_last_chit_count = groupData.chit_history.length;
             }
