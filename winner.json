@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-09-01T00:00:00Z",
+  "last_updated": "2026-09-01T07:46:31Z",
   "billing_cycle": "September 2026",
   "admin": "Megala",
   "members": [
@@ -10,7 +10,9 @@
     { "id": 5, "name": "Megala", "random_number": 8160, "contact": "+91 99622 33995", "role": "Current Admin" },
     { "id": 6, "name": "Prabu", "random_number": 5287, "contact": "User / Member" }
   ],
-  "current_winner": null,
-  "remaining_pool_count": 6,
-  "history": []
+  "current_winner": { "id": 1, "name": "Vijay Ford", "random_number": 4821, "contact": "Previous Admin" },
+  "remaining_pool_count": 5,
+  "history": [
+    { "id": 1, "name": "Vijay Ford", "random_number": 4821, "contact": "Previous Admin" }
+  ]
 }
