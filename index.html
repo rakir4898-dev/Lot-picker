@@ -448,9 +448,10 @@
     <div class="modal-overlay" id="auth-modal">
         <div class="modal-card">
             <h2><i class="fa-solid fa-user-check" aria-hidden="true"></i>Enter Your Name</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Type your name and Gmail to enter.</p>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Sign in with Google, then enter your roster name.</p>
+            <button id="google-login-button" onclick="signInWithGoogle()"><i class="fa-brands fa-google" aria-hidden="true"></i>Sign in with Google</button>
+            <p class="admin-note" id="google-auth-status">Google authentication is not connected yet.</p>
             <input type="text" id="username-input" placeholder="e.g. Prabu, Vijay, Megala..." onkeypress="checkEnter(event)">
-            <input type="email" id="gmail-input" placeholder="yourname@gmail.com" onkeypress="checkEnter(event)">
             <div class="error-msg" id="error-msg">Name not found in group roster. Try again.</div>
             <button onclick="verifyUser()"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>Access Dashboard</button>
         </div>
@@ -640,6 +641,9 @@
         const SUPER_ADMIN_KEYWORD = 'vijay';
         const DASHBOARD_ADMIN_KEYWORD = 'prabu';
         const MAX_PARTICIPATION_CHANGES = 2;
+        const FIREBASE_APP_URL = 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
+        const FIREBASE_AUTH_URL = 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
+        const FIREBASE_FIRESTORE_URL = 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
         const groupData = {
             last_updated: "2026-09-01T00:00:00Z",
@@ -694,7 +698,68 @@
 
         let availablePool = [];
         let currentUser = null;
+        let firebaseAuth = null;
+        let firestoreDb = null;
+        let firebaseApi = null;
+        let authenticatedUser = null;
         let activeTab = 'user';
+
+        function setAuthStatus(message, isError = false) {
+            const status = document.getElementById('google-auth-status');
+            if (!status) return;
+            status.style.color = isError ? 'var(--error)' : 'var(--text-muted)';
+            status.textContent = message;
+        }
+
+        async function initializeFirebase() {
+            try {
+                const configResponse = await fetch('firebase-config.json', { cache: 'no-store' });
+                if (!configResponse.ok) {
+                    setAuthStatus('Add firebase-config.json to enable Google sign-in.', true);
+                    return;
+                }
+
+                const firebaseConfig = await configResponse.json();
+                const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
+                    import(FIREBASE_APP_URL),
+                    import(FIREBASE_AUTH_URL),
+                    import(FIREBASE_FIRESTORE_URL)
+                ]);
+                const app = initializeApp(firebaseConfig);
+                firebaseAuth = authModule.getAuth(app);
+                firestoreDb = firestoreModule.getFirestore(app);
+                firebaseApi = { ...authModule, ...firestoreModule };
+
+                authModule.onAuthStateChanged(firebaseAuth, user => {
+                    authenticatedUser = user;
+                    if (user?.email) {
+                        setAuthStatus(`Signed in with ${user.email}`);
+                    } else {
+                        setAuthStatus('Sign in with Google before accessing the dashboard.');
+                    }
+                });
+            } catch (error) {
+                setAuthStatus('Google sign-in setup is incomplete.', true);
+                console.warn('Firebase initialization failed', error);
+            }
+        }
+
+        async function signInWithGoogle() {
+            if (!firebaseAuth || !firebaseApi) {
+                setAuthStatus('Google sign-in requires firebase-config.json setup.', true);
+                return;
+            }
+
+            try {
+                const provider = new firebaseApi.GoogleAuthProvider();
+                const result = await firebaseApi.signInWithPopup(firebaseAuth, provider);
+                authenticatedUser = result.user;
+                setAuthStatus(`Signed in with ${authenticatedUser.email}`);
+            } catch (error) {
+                setAuthStatus('Google sign-in failed. Try again.', true);
+                console.warn('Google sign-in failed', error);
+            }
+        }
 
         function getCurrentMonthValue() {
             const today = new Date();
@@ -930,6 +995,39 @@
 
         function saveFeedbackData() {
             localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(feedbackData));
+        }
+
+        async function saveProtectedActivity(action, details = {}) {
+            if (!authenticatedUser || !firestoreDb || !firebaseApi) return;
+
+            try {
+                const activityRef = firebaseApi.collection(firestoreDb, 'users', authenticatedUser.uid, 'activity');
+                await firebaseApi.addDoc(activityRef, {
+                    action,
+                    details,
+                    email: authenticatedUser.email,
+                    memberName: currentUser?.name || null,
+                    createdAt: firebaseApi.serverTimestamp()
+                });
+            } catch (error) {
+                console.warn('Unable to save protected activity log', error);
+            }
+        }
+
+        async function saveProtectedFeedback(feedbackItem) {
+            if (!authenticatedUser || !firestoreDb || !firebaseApi) return;
+
+            try {
+                await firebaseApi.addDoc(firebaseApi.collection(firestoreDb, 'feedback'), {
+                    ...feedbackItem,
+                    ownerUid: authenticatedUser.uid,
+                    ownerEmail: authenticatedUser.email,
+                    createdAt: firebaseApi.serverTimestamp(),
+                    updatedAt: firebaseApi.serverTimestamp()
+                });
+            } catch (error) {
+                console.warn('Unable to save protected feedback', error);
+            }
         }
 
         function isCurrentWinner(member, type) {
@@ -1461,20 +1559,20 @@
 
         function verifyUser() {
             const inputVal = document.getElementById('username-input').value.trim().toLowerCase();
-            const gmailInput = normalizeEmail(document.getElementById('gmail-input').value);
             const errorMsg = document.getElementById('error-msg');
             if (!inputVal) {
                 errorMsg.textContent = "Please enter a name.";
                 errorMsg.style.display = 'block';
                 return;
             }
-            if (!isValidGmail(gmailInput)) {
-                errorMsg.textContent = "Please enter a valid Gmail address.";
+            if (!authenticatedUser?.email || !isValidGmail(normalizeEmail(authenticatedUser.email))) {
+                errorMsg.textContent = "Please sign in with a Gmail account first.";
                 errorMsg.style.display = 'block';
                 return;
             }
             const matchedMember = groupData.members.find(m => m.name.toLowerCase().includes(inputVal));
             if (matchedMember) {
+                const gmailInput = normalizeEmail(authenticatedUser.email);
                 const savedGmail = groupData.member_emails[matchedMember.id];
                 if (savedGmail && savedGmail !== gmailInput) {
                     errorMsg.textContent = "Gmail authentication failed. Use the same Gmail entered the first time.";
@@ -1497,6 +1595,7 @@
                 activeTab = 'user';
                 renderRoster();
                 renderWinnerState();
+                saveProtectedActivity('Logged in', { memberId: matchedMember.id });
             } else {
                 errorMsg.textContent = "Name not found in group roster. Try again.";
                 errorMsg.style.display = 'block';
@@ -1594,6 +1693,7 @@
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
+            saveProtectedFeedback(feedbackData.feedback[feedbackData.feedback.length - 1]);
             saveFeedbackData();
             feedbackInput.value = '';
             feedbackMessage.style.color = 'var(--accent)';
@@ -1701,6 +1801,11 @@
             });
             availablePool = [];
             saveWinnerState();
+            saveProtectedActivity('Updated lottery participation', {
+                month: groupData.monthly_lot.month,
+                response: wantsToJoin ? 'yes' : 'no',
+                changes: responses[participant.id].changes
+            });
             renderWinnerState();
         }
 
@@ -1762,6 +1867,7 @@
             renderWinnerState();
         }
 
+        initializeFirebase();
         loadWinnerState();
     </script>
 </body>

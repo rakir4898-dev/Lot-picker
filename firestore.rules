@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email.matches('.*@gmail\\.com$');
+    }
+
+    function isPrabu() {
+      return signedIn() && request.auth.token.email == 'prabu@gmail.com';
+    }
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+
+      match /activity/{activityId} {
+        allow read, write: if signedIn() && request.auth.uid == userId;
+      }
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.status == 'open';
+      allow read: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid || isPrabu());
+      allow update: if isPrabu()
+        && request.resource.data.status in ['open', 'accepted', 'resolved', 'deferred'];
+      allow delete: if false;
+    }
+  }
+}
