@@ -1,0 +1,16 @@
+{
+  "last_updated": "2026-09-01T00:00:00Z",
+  "billing_cycle": "September 2026",
+  "admin": "Megala",
+  "members": [
+    { "id": 1, "name": "Vijay Ford", "random_number": 4821, "contact": "Previous Admin" },
+    { "id": 2, "name": "Anbarasu Ford Altimetrics", "random_number": 1953, "contact": "Member" },
+    { "id": 3, "name": "Murali Krishna Ford", "random_number": 7326, "contact": "Member" },
+    { "id": 4, "name": "Balu", "random_number": 3049, "contact": "+91 92822 29819" },
+    { "id": 5, "name": "Megala", "random_number": 8160, "contact": "+91 99622 33995", "role": "Current Admin" },
+    { "id": 6, "name": "Prabu", "random_number": 5287, "contact": "User / Member" }
+  ],
+  "current_winner": null,
+  "remaining_pool_count": 6,
+  "history": []
+}
