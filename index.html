@@ -441,9 +441,54 @@
             font-size: 1.25rem;
             margin-top: 4px;
         }
+
+        .notification-stack {
+            position: fixed;
+            right: 16px;
+            top: 16px;
+            width: min(360px, calc(100vw - 32px));
+            z-index: 1200;
+        }
+
+        .alert {
+            border: 1px solid transparent;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            margin: 10px 0 0;
+            padding: 12px 14px;
+            text-align: left;
+        }
+
+        .alert-success {
+            background-color: #d1e7dd;
+            border-color: #badbcc;
+            color: #0f5132;
+        }
+
+        .alert-danger {
+            background-color: #f8d7da;
+            border-color: #f5c2c7;
+            color: #842029;
+        }
+
+        .alert-warning {
+            background-color: #fff3cd;
+            border-color: #ffecb5;
+            color: #664d03;
+        }
+
+        .alert-info {
+            background-color: #cff4fc;
+            border-color: #b6effb;
+            color: #055160;
+        }
     </style>
 </head>
 <body>
+
+    <div class="notification-stack" id="notification-stack" aria-live="polite"></div>
 
     <div class="modal-overlay" id="auth-modal">
         <div class="modal-card">
@@ -705,6 +750,40 @@
         let currentUser = null;
         let adminEditMode = false;
         let activeTab = 'user';
+
+        function getAlertClass(type) {
+            return {
+                success: 'alert-success',
+                error: 'alert-danger',
+                danger: 'alert-danger',
+                warning: 'alert-warning',
+                info: 'alert-info'
+            }[type] || 'alert-info';
+        }
+
+        function setInlineAlert(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+            element.className = `alert ${getAlertClass(type)}`;
+            element.textContent = message;
+            element.style.display = message ? 'block' : 'none';
+        }
+
+        function showNotification(message, type = 'info') {
+            const stack = document.getElementById('notification-stack');
+            if (!stack || !message) return;
+
+            const alert = document.createElement('div');
+            alert.className = `alert ${getAlertClass(type)}`;
+            alert.textContent = message;
+            stack.appendChild(alert);
+            window.setTimeout(() => alert.remove(), 4500);
+        }
+
+        function notifyAndSet(elementId, message, type = 'info') {
+            setInlineAlert(elementId, message, type);
+            showNotification(message, type);
+        }
 
         async function logOut() {
             currentUser = null;
@@ -1203,13 +1282,14 @@
         function startAdminEdit() {
             if (!currentUser || !isSuperAdmin(currentUser)) return;
             adminEditMode = true;
-            document.getElementById('admin-message').textContent = '';
+            setInlineAlert('admin-message', '', 'info');
+            showNotification('Monthly entry edit mode enabled.', 'info');
             renderAdminPanel();
         }
 
         function cancelAdminEdit() {
             adminEditMode = false;
-            document.getElementById('admin-message').textContent = '';
+            notifyAndSet('admin-message', 'Monthly entry changes were cancelled.', 'warning');
             renderAdminPanel();
         }
 
@@ -1347,17 +1427,13 @@
             noButton.disabled = !windowOpen || changesLeft === 0;
 
             if (response === true) {
-                participationMessage.style.color = 'var(--accent)';
-                participationMessage.textContent = `Your response is saved: Yes, include me. Changes left this month: ${changesLeft}.`;
+                setInlineAlert('participation-message', `Your response is saved: Yes, include me. Changes left this month: ${changesLeft}.`, 'success');
             } else if (response === false) {
-                participationMessage.style.color = 'var(--error)';
-                participationMessage.textContent = `Your response is saved: No, skip me. Changes left this month: ${changesLeft}.`;
+                setInlineAlert('participation-message', `Your response is saved: No, skip me. Changes left this month: ${changesLeft}.`, 'warning');
             } else if (!windowOpen) {
-                participationMessage.style.color = 'var(--error)';
-                participationMessage.textContent = 'Participation is closed for this month.';
+                setInlineAlert('participation-message', 'Participation is closed for this month.', 'danger');
             } else {
-                participationMessage.style.color = 'var(--text-muted)';
-                participationMessage.textContent = `No response saved for this month yet. Changes left this month: ${changesLeft}.`;
+                setInlineAlert('participation-message', `No response saved for this month yet. Changes left this month: ${changesLeft}.`, 'info');
             }
         }
 
@@ -1423,7 +1499,7 @@
             normalizeMonthlyLot();
             const eligibleParticipants = getEligibleParticipants();
             groupData.remaining_pool_count = eligibleParticipants.length;
-            document.getElementById('status-text').textContent = 'Eligible super participation winners are listed below.';
+            setInlineAlert('status-text', 'Eligible super participation winners are listed below.', 'info');
             renderEligibleWinners();
             renderWinnerCards();
             renderChitHistory();
@@ -1499,21 +1575,18 @@
             const gmailInput = normalizeEmail(document.getElementById('gmail-input').value);
             const errorMsg = document.getElementById('error-msg');
             if (!inputVal) {
-                errorMsg.textContent = "Please enter a name.";
-                errorMsg.style.display = 'block';
+                notifyAndSet('error-msg', 'Please enter a name.', 'danger');
                 return;
             }
             if (!isValidGmail(gmailInput)) {
-                errorMsg.textContent = "Please enter a valid Gmail address.";
-                errorMsg.style.display = 'block';
+                notifyAndSet('error-msg', 'Please enter a valid Gmail address.', 'danger');
                 return;
             }
             const matchedMember = groupData.members.find(m => m.name.toLowerCase().includes(inputVal));
             if (matchedMember) {
                 const savedGmail = groupData.member_emails[matchedMember.id];
                 if (savedGmail && savedGmail !== gmailInput) {
-                    errorMsg.textContent = "Gmail authentication failed. Use the same Gmail entered the first time.";
-                    errorMsg.style.display = 'block';
+                    notifyAndSet('error-msg', 'Gmail authentication failed. Use the same Gmail entered the first time.', 'danger');
                     return;
                 }
 
@@ -1533,9 +1606,9 @@
                 activeTab = 'user';
                 renderRoster();
                 renderWinnerState();
+                showNotification(`Welcome, ${matchedMember.name}.`, 'success');
             } else {
-                errorMsg.textContent = "Name not found in group roster. Try again.";
-                errorMsg.style.display = 'block';
+                notifyAndSet('error-msg', 'Name not found in group roster. Try again.', 'danger');
             }
         }
 
@@ -1564,14 +1637,12 @@
 
         function saveMonthlyParticipants() {
             if (!isSuperAdmin(currentUser)) {
-                document.getElementById('admin-message').style.color = 'var(--error)';
-                document.getElementById('admin-message').textContent = 'Only super admins can update monthly participants and chit amount.';
+                notifyAndSet('admin-message', 'Only super admins can update monthly participants and chit amount.', 'danger');
                 return;
             }
 
             if (!adminEditMode) {
-                document.getElementById('admin-message').style.color = 'var(--error)';
-                document.getElementById('admin-message').textContent = 'Click Edit Monthly Entry before saving changes.';
+                notifyAndSet('admin-message', 'Click Edit Monthly Entry before saving changes.', 'warning');
                 return;
             }
 
@@ -1582,8 +1653,7 @@
             const adminMessage = document.getElementById('admin-message');
 
             if (participantLines.length === 0) {
-                adminMessage.style.color = 'var(--error)';
-                adminMessage.textContent = 'Enter at least one participant.';
+                notifyAndSet('admin-message', 'Enter at least one participant.', 'danger');
                 return;
             }
 
@@ -1611,8 +1681,7 @@
             renderRoster();
             renderWinnerState();
 
-            adminMessage.style.color = 'var(--accent)';
-            adminMessage.textContent = `Saved ${participants.length} participants. ${groupData.monthly_lot.max_entries} are eligible. Chit amount is ${formatMoney(requestedChitAmount)}.`;
+            notifyAndSet('admin-message', `Saved ${participants.length} participants. ${groupData.monthly_lot.max_entries} are eligible. Chit amount is ${formatMoney(requestedChitAmount)}.`, 'success');
         }
 
         function submitFeedback() {
@@ -1623,8 +1692,7 @@
             if (!currentUser) return;
 
             if (!message) {
-                feedbackMessage.style.color = 'var(--error)';
-                feedbackMessage.textContent = 'Enter feedback before submitting.';
+                notifyAndSet('feedback-message', 'Enter feedback before submitting.', 'danger');
                 return;
             }
 
@@ -1639,8 +1707,7 @@
             });
             saveFeedbackData();
             feedbackInput.value = '';
-            feedbackMessage.style.color = 'var(--accent)';
-            feedbackMessage.textContent = 'Feedback submitted.';
+            notifyAndSet('feedback-message', 'Feedback submitted.', 'success');
             renderPrabuDashboard();
             renderFeedbackReview();
         }
@@ -1665,8 +1732,7 @@
             const nameMessage = document.getElementById('name-update-message');
 
             if (!updatedName) {
-                nameMessage.style.color = 'var(--error)';
-                nameMessage.textContent = 'Enter a valid name.';
+                notifyAndSet('name-update-message', 'Enter a valid name.', 'danger');
                 return;
             }
 
@@ -1696,6 +1762,7 @@
             document.getElementById('welcome-user-text').textContent = `Logged in as: ${currentUser.name}`;
             renderRoster();
             renderWinnerState();
+            showNotification('Name updated successfully.', 'success');
         }
 
         function confirmParticipation(wantsToJoin) {
@@ -1703,13 +1770,12 @@
             const responseText = wantsToJoin ? 'join' : 'skip';
 
             if (!participant) {
-                document.getElementById('participation-message').textContent = 'You are not in this month participant list.';
+                notifyAndSet('participation-message', 'You are not in this month participant list.', 'warning');
                 return;
             }
 
             if (!isParticipationWindowOpen()) {
-                document.getElementById('participation-message').style.color = 'var(--error)';
-                document.getElementById('participation-message').textContent = 'Participation is closed for this month.';
+                notifyAndSet('participation-message', 'Participation is closed for this month.', 'danger');
                 return;
             }
 
@@ -1718,8 +1784,7 @@
             const changesUsed = previousRecord?.changes || 0;
 
             if (previousValue !== undefined && previousValue !== wantsToJoin && changesUsed >= MAX_PARTICIPATION_CHANGES) {
-                document.getElementById('participation-message').style.color = 'var(--error)';
-                document.getElementById('participation-message').textContent = 'You already changed your response twice this month.';
+                notifyAndSet('participation-message', 'You already changed your response twice this month.', 'warning');
                 return;
             }
 
@@ -1745,32 +1810,33 @@
             availablePool = [];
             saveWinnerState();
             renderWinnerState();
+            showNotification(`Participation response saved: ${wantsToJoin ? 'Yes' : 'No'}.`, 'success');
         }
 
         function pickWinner(type) {
             const nextPickDate = getNextPickDate(type);
             const winnerState = getWinnerState(type);
             if (nextPickDate && new Date() < nextPickDate) {
-                document.getElementById('status-text').textContent = `${type === 'super' ? 'Super' : 'Chit'} winner already picked. Next pick available on ${formatDate(nextPickDate)}.`;
+                notifyAndSet('status-text', `${type === 'super' ? 'Super' : 'Chit'} winner already picked. Next pick available on ${formatDate(nextPickDate)}.`, 'warning');
                 return;
             }
 
             if (type === 'super' && !canPickSuperForCurrentChit()) {
-                document.getElementById('status-text').textContent = `Super Participation Winner can be selected only after chit ${getNextSuperChitCount()}.`;
+                notifyAndSet('status-text', `Super Participation Winner can be selected only after chit ${getNextSuperChitCount()}.`, 'warning');
                 return;
             }
 
             if (!canCurrentUserPick(type)) {
                 const currentWinner = groupData[winnerState.winnerKey];
-                document.getElementById('status-text').textContent = type === 'chit'
+                notifyAndSet('status-text', type === 'chit'
                     ? 'Only Vijay can select the chit winner.'
-                    : currentWinner ? `Only ${currentWinner.name} can select the next super winner.` : 'Vijay must pick the first super winner.';
+                    : currentWinner ? `Only ${currentWinner.name} can select the next super winner.` : 'Vijay must pick the first super winner.', 'danger');
                 return;
             }
 
             const selectedWinner = getRandomWinner(type);
             if (!selectedWinner) {
-                document.getElementById('status-text').textContent = 'No eligible participants. Vijay must enter this month\'s participants first.';
+                notifyAndSet('status-text', 'No eligible participants. Vijay must enter this month\'s participants first.', 'warning');
                 return;
             }
 
@@ -1803,6 +1869,7 @@
 
             saveWinnerState();
             renderWinnerState();
+            showNotification(`${type === 'super' ? 'Super Participation' : 'Chit'} winner selected: ${winnerRecord.name}.`, 'success');
         }
 
         Object.assign(window, {
