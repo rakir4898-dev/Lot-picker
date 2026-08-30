@@ -447,25 +447,10 @@
 
     <div class="modal-overlay" id="auth-modal">
         <div class="modal-card">
-            <h2><i class="fa-solid fa-user-check" aria-hidden="true"></i>Choose Login Method</h2>
-            <p style="font-size: 0.85rem; color: var(--text-muted);">Enter your roster name, then choose Google or WhatsApp-style phone OTP.</p>
+            <h2><i class="fa-solid fa-user-check" aria-hidden="true"></i>Enter Your Name</h2>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Type your name and Gmail to enter.</p>
             <input type="text" id="username-input" placeholder="e.g. Prabu, Vijay, Megala..." onkeypress="checkEnter(event)">
-            <div class="choice-buttons">
-                <button id="choose-google-button" onclick="setAuthMethod('google')"><i class="fa-brands fa-google" aria-hidden="true"></i>Google</button>
-                <button id="choose-phone-button" class="active" onclick="setAuthMethod('phone')"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>WhatsApp</button>
-            </div>
-            <div id="google-auth-panel" style="display: none;">
-                <button id="google-login-button" onclick="signInWithGoogle()"><i class="fa-brands fa-google" aria-hidden="true"></i>Sign in with Google</button>
-                <button id="google-redirect-button" onclick="signInWithGoogleRedirect()"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>Use Redirect Sign-In</button>
-            </div>
-            <div id="phone-auth-panel">
-            <input type="tel" id="phone-input" placeholder="10-digit WhatsApp number" onkeypress="checkEnter(event)">
-            <button id="send-otp-button" onclick="sendPhoneOtp()"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i>Send OTP</button>
-            <input type="text" id="otp-input" placeholder="Enter OTP" inputmode="numeric" onkeypress="checkEnter(event)">
-            <button id="verify-otp-button" onclick="verifyPhoneOtp()"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Verify OTP</button>
-            <div id="recaptcha-container"></div>
-            </div>
-            <p class="admin-note" id="phone-auth-status">Phone authentication is not connected yet.</p>
+            <input type="email" id="gmail-input" placeholder="yourname@gmail.com" onkeypress="checkEnter(event)">
             <div class="error-msg" id="error-msg">Name not found in group roster. Try again.</div>
             <button onclick="verifyUser()"><i class="fa-solid fa-right-to-bracket" aria-hidden="true"></i>Access Dashboard</button>
         </div>
@@ -534,7 +519,11 @@
                 <label for="participants-input">Participants</label>
                 <textarea id="participants-input" placeholder="One participant per line. Optional format: Name | Random ID | Contact"></textarea>
 
-                <button id="save-monthly-button" onclick="saveMonthlyParticipants()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Save Monthly Participants</button>
+                <div class="winner-actions">
+                    <button id="edit-monthly-button" onclick="startAdminEdit()"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>Edit Monthly Entry</button>
+                    <button id="save-monthly-button" onclick="saveMonthlyParticipants()"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>Save Monthly Entry</button>
+                    <button id="cancel-monthly-button" onclick="cancelAdminEdit()"><i class="fa-solid fa-ban" aria-hidden="true"></i>Cancel Edit</button>
+                </div>
                 <p class="admin-message" id="admin-message"></p>
 
                 <div style="margin-top: 18px;">
@@ -656,9 +645,6 @@
         const SUPER_ADMIN_KEYWORD = 'vijay';
         const DASHBOARD_ADMIN_KEYWORD = 'prabu';
         const MAX_PARTICIPATION_CHANGES = 2;
-        const FIREBASE_APP_URL = 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
-        const FIREBASE_AUTH_URL = 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
-        const FIREBASE_FIRESTORE_URL = 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
         const groupData = {
             last_updated: "2026-09-01T00:00:00Z",
@@ -703,7 +689,6 @@
             vijay_task_log: [],
             winner_cycle: [],
             member_emails: {},
-            member_phones: {},
             name_updates: {},
             name_change_log: []
         };
@@ -714,198 +699,21 @@
 
         let availablePool = [];
         let currentUser = null;
-        let firebaseAuth = null;
-        let firestoreDb = null;
-        let firebaseApi = null;
-        let authenticatedUser = null;
-        let phoneConfirmationResult = null;
-        let authMethod = 'phone';
+        let adminEditMode = false;
         let activeTab = 'user';
 
-        function setAuthStatus(message, isError = false) {
-            const status = document.getElementById('phone-auth-status');
-            if (!status) return;
-            status.style.color = isError ? 'var(--error)' : 'var(--text-muted)';
-            status.textContent = message;
-        }
-
-        async function initializeFirebase() {
-            try {
-                const configResponse = await fetch('firebase-config.json', { cache: 'no-store' });
-                if (!configResponse.ok) {
-                    setAuthStatus('Add firebase-config.json to enable Google or WhatsApp sign-in.', true);
-                    return;
-                }
-
-                const firebaseConfig = await configResponse.json();
-                const [{ initializeApp }, authModule, firestoreModule] = await Promise.all([
-                    import(FIREBASE_APP_URL),
-                    import(FIREBASE_AUTH_URL),
-                    import(FIREBASE_FIRESTORE_URL)
-                ]);
-                const app = initializeApp(firebaseConfig);
-                firebaseAuth = authModule.getAuth(app);
-                firestoreDb = firestoreModule.getFirestore(app);
-                firebaseApi = { ...authModule, ...firestoreModule };
-                await checkRedirectResult();
-
-                authModule.onAuthStateChanged(firebaseAuth, user => {
-                    authenticatedUser = user;
-                    if (user?.phoneNumber) {
-                        setAuthStatus(`Verified ${user.phoneNumber}`);
-                    } else if (user?.email) {
-                        setAuthStatus(`Signed in with ${user.email}`);
-                    } else {
-                        setAuthStatus('Choose Google or WhatsApp sign-in before accessing the dashboard.');
-                    }
-                });
-            } catch (error) {
-                setAuthStatus('Authentication setup is incomplete.', true);
-                console.warn('Firebase initialization failed', error);
-            }
-        }
-
-        function setAuthMethod(method) {
-            authMethod = method;
-            document.getElementById('google-auth-panel').style.display = method === 'google' ? 'block' : 'none';
-            document.getElementById('phone-auth-panel').style.display = method === 'phone' ? 'block' : 'none';
-            document.getElementById('choose-google-button').classList.toggle('active', method === 'google');
-            document.getElementById('choose-phone-button').classList.toggle('active', method === 'phone');
-        }
-
-        async function signInWithGoogle() {
-            if (!firebaseAuth || !firebaseApi) {
-                setAuthStatus('Google sign-in requires firebase-config.json setup.', true);
-                return;
-            }
-
-            try {
-                const provider = new firebaseApi.GoogleAuthProvider();
-                provider.addScope('profile');
-                provider.addScope('email');
-                const result = await firebaseApi.signInWithPopup(firebaseAuth, provider);
-                authenticatedUser = result.user;
-                setAuthStatus(`Signed in with ${authenticatedUser.email}`);
-            } catch (error) {
-                setAuthStatus('Google popup sign-in failed. Try redirect sign-in.', true);
-                console.warn('Google sign-in failed', error);
-            }
-        }
-
-        async function signInWithGoogleRedirect() {
-            if (!firebaseAuth || !firebaseApi) {
-                setAuthStatus('Google redirect sign-in requires firebase-config.json setup.', true);
-                return;
-            }
-
-            try {
-                const provider = new firebaseApi.GoogleAuthProvider();
-                provider.addScope('profile');
-                provider.addScope('email');
-                await firebaseApi.signInWithRedirect(firebaseAuth, provider);
-            } catch (error) {
-                setAuthStatus('Google redirect sign-in failed.', true);
-                console.warn('Google redirect sign-in failed', error);
-            }
-        }
-
-        async function checkRedirectResult() {
-            if (!firebaseAuth || !firebaseApi) return;
-
-            try {
-                const result = await firebaseApi.getRedirectResult(firebaseAuth);
-                if (result?.user) {
-                    authenticatedUser = result.user;
-                    setAuthStatus(`Signed in with ${authenticatedUser.email}`);
-                }
-            } catch (error) {
-                setAuthStatus('Google redirect result failed.', true);
-                console.warn('Google redirect result failed', error);
-            }
-        }
-
         async function logOut() {
-            if (!firebaseAuth || !firebaseApi) {
-                document.getElementById('auth-modal').style.display = 'flex';
-                document.getElementById('main-dashboard').style.display = 'none';
-                authenticatedUser = null;
-                currentUser = null;
-                return;
-            }
-
-            try {
-                await firebaseApi.signOut(firebaseAuth);
-                authenticatedUser = null;
-                currentUser = null;
-                document.getElementById('auth-modal').style.display = 'flex';
-                document.getElementById('main-dashboard').style.display = 'none';
-                setAuthStatus('Signed out successfully.');
-            } catch (error) {
-                setAuthStatus('Sign-out failed.', true);
-                console.warn('Sign-out failed', error);
-            }
-        }
-
-        function normalizePhone(phone) {
-            const digits = phone.replace(/\D/g, '');
-            const withoutCountryCode = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
-            return withoutCountryCode.length === 10 ? `+91${withoutCountryCode}` : '';
+            currentUser = null;
+            document.getElementById('auth-modal').style.display = 'flex';
+            document.getElementById('main-dashboard').style.display = 'none';
         }
 
         function normalizeEmail(email) {
             return (email || '').trim().toLowerCase();
         }
 
-        function getApprovedPhone(member) {
-            return normalizePhone(member.contact || '');
-        }
-
-        async function sendPhoneOtp() {
-            if (!firebaseAuth || !firebaseApi) {
-                setAuthStatus('Phone OTP requires firebase-config.json setup.', true);
-                return;
-            }
-
-            const phoneNumber = normalizePhone(document.getElementById('phone-input').value);
-            if (!phoneNumber) {
-                setAuthStatus('Enter a valid 10-digit WhatsApp phone number.', true);
-                return;
-            }
-
-            try {
-                if (!window.recaptchaVerifier) {
-                    window.recaptchaVerifier = new firebaseApi.RecaptchaVerifier(firebaseAuth, 'recaptcha-container', {
-                        size: 'invisible'
-                    });
-                }
-                phoneConfirmationResult = await firebaseApi.signInWithPhoneNumber(firebaseAuth, phoneNumber, window.recaptchaVerifier);
-                setAuthStatus(`OTP sent to ${phoneNumber}.`);
-            } catch (error) {
-                setAuthStatus('Unable to send OTP. Check Firebase Phone Auth setup.', true);
-                console.warn('Phone OTP send failed', error);
-            }
-        }
-
-        async function verifyPhoneOtp() {
-            if (!phoneConfirmationResult) {
-                setAuthStatus('Send OTP first.', true);
-                return;
-            }
-
-            const otp = document.getElementById('otp-input').value.trim();
-            if (!otp) {
-                setAuthStatus('Enter the OTP.', true);
-                return;
-            }
-
-            try {
-                const result = await phoneConfirmationResult.confirm(otp);
-                authenticatedUser = result.user;
-                setAuthStatus(`Verified ${authenticatedUser.phoneNumber}`);
-            } catch (error) {
-                setAuthStatus('OTP verification failed.', true);
-                console.warn('Phone OTP verification failed', error);
-            }
+        function isValidGmail(email) {
+            return /^[^\s@]+@gmail\.com$/.test(email);
         }
 
         function getCurrentMonthValue() {
@@ -988,7 +796,6 @@
             groupData.participation_change_log = Array.isArray(groupData.participation_change_log) ? groupData.participation_change_log : [];
             groupData.vijay_task_log = Array.isArray(groupData.vijay_task_log) ? groupData.vijay_task_log : [];
             groupData.member_emails = groupData.member_emails || {};
-            groupData.member_phones = groupData.member_phones || {};
             groupData.name_updates = groupData.name_updates || {};
             groupData.name_change_log = Array.isArray(groupData.name_change_log) ? groupData.name_change_log : [];
         }
@@ -1135,43 +942,6 @@
 
         function saveFeedbackData() {
             localStorage.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(feedbackData));
-        }
-
-        async function saveProtectedActivity(action, details = {}) {
-            if (!authenticatedUser || !firestoreDb || !firebaseApi) return;
-
-            try {
-                const activityRef = firebaseApi.collection(firestoreDb, 'users', authenticatedUser.uid, 'activity');
-                await firebaseApi.addDoc(activityRef, {
-                    action,
-                    details,
-                    phoneNumber: authenticatedUser.phoneNumber,
-                    email: authenticatedUser.email,
-                    authMethod,
-                    memberName: currentUser?.name || null,
-                    createdAt: firebaseApi.serverTimestamp()
-                });
-            } catch (error) {
-                console.warn('Unable to save protected activity log', error);
-            }
-        }
-
-        async function saveProtectedFeedback(feedbackItem) {
-            if (!authenticatedUser || !firestoreDb || !firebaseApi) return;
-
-            try {
-                await firebaseApi.addDoc(firebaseApi.collection(firestoreDb, 'feedback'), {
-                    ...feedbackItem,
-                    ownerUid: authenticatedUser.uid,
-                    ownerPhoneNumber: authenticatedUser.phoneNumber,
-                    ownerEmail: authenticatedUser.email,
-                    authMethod,
-                    createdAt: firebaseApi.serverTimestamp(),
-                    updatedAt: firebaseApi.serverTimestamp()
-                });
-            } catch (error) {
-                console.warn('Unable to save protected feedback', error);
-            }
         }
 
         function isCurrentWinner(member, type) {
@@ -1406,19 +1176,37 @@
             });
 
             adminPanel.style.display = 'block';
-            document.getElementById('lot-month-input').value = groupData.monthly_lot.month;
-            document.getElementById('participation-start-input').value = groupData.monthly_lot.participation_start;
-            document.getElementById('participation-end-input').value = groupData.monthly_lot.participation_end;
-            document.getElementById('max-entries-input').value = groupData.monthly_lot.max_entries;
-            document.getElementById('chit-amount-input').value = getChitAmount(groupData.monthly_lot.month);
-            document.getElementById('participants-input').value = participantLines.join('\n');
+            if (!adminEditMode) {
+                document.getElementById('lot-month-input').value = groupData.monthly_lot.month;
+                document.getElementById('participation-start-input').value = groupData.monthly_lot.participation_start;
+                document.getElementById('participation-end-input').value = groupData.monthly_lot.participation_end;
+                document.getElementById('max-entries-input').value = groupData.monthly_lot.max_entries;
+                document.getElementById('chit-amount-input').value = getChitAmount(groupData.monthly_lot.month);
+                document.getElementById('participants-input').value = participantLines.join('\n');
+            }
             document.getElementById('admin-day-note').textContent = today.getDate() === groupData.monthly_lot.entry_day
                 ? 'Today is day 1. Enter this month\'s participants now.'
                 : `Monthly participants are expected on day ${groupData.monthly_lot.entry_day}.`;
-            ['lot-month-input', 'participation-start-input', 'participation-end-input', 'max-entries-input', 'chit-amount-input', 'participants-input', 'save-monthly-button'].forEach(id => {
-                document.getElementById(id).disabled = !isVijay(currentUser);
+            ['lot-month-input', 'participation-start-input', 'participation-end-input', 'max-entries-input', 'chit-amount-input', 'participants-input'].forEach(id => {
+                document.getElementById(id).disabled = !adminEditMode;
             });
+            document.getElementById('edit-monthly-button').style.display = adminEditMode ? 'none' : 'block';
+            document.getElementById('save-monthly-button').style.display = adminEditMode ? 'block' : 'none';
+            document.getElementById('cancel-monthly-button').style.display = adminEditMode ? 'block' : 'none';
             renderAdminYesParticipants();
+        }
+
+        function startAdminEdit() {
+            if (!currentUser || !isSuperAdmin(currentUser)) return;
+            adminEditMode = true;
+            document.getElementById('admin-message').textContent = '';
+            renderAdminPanel();
+        }
+
+        function cancelAdminEdit() {
+            adminEditMode = false;
+            document.getElementById('admin-message').textContent = '';
+            renderAdminPanel();
         }
 
         function showTab(tabName) {
@@ -1703,46 +1491,32 @@
 
         function verifyUser() {
             const inputVal = document.getElementById('username-input').value.trim().toLowerCase();
+            const gmailInput = normalizeEmail(document.getElementById('gmail-input').value);
             const errorMsg = document.getElementById('error-msg');
             if (!inputVal) {
                 errorMsg.textContent = "Please enter a name.";
                 errorMsg.style.display = 'block';
                 return;
             }
+            if (!isValidGmail(gmailInput)) {
+                errorMsg.textContent = "Please enter a valid Gmail address.";
+                errorMsg.style.display = 'block';
+                return;
+            }
             const matchedMember = groupData.members.find(m => m.name.toLowerCase().includes(inputVal));
             if (matchedMember) {
-                if (authMethod === 'phone') {
-                    if (!authenticatedUser?.phoneNumber) {
-                        errorMsg.textContent = "Please verify your WhatsApp phone number first.";
-                        errorMsg.style.display = 'block';
+                const savedGmail = groupData.member_emails[matchedMember.id];
+                if (savedGmail && savedGmail !== gmailInput) {
+                    errorMsg.textContent = "Gmail authentication failed. Use the same Gmail entered the first time.";
+                    errorMsg.style.display = 'block';
+                    return;
+                }
+
+                if (!savedGmail) {
+                    if (!window.confirm(`Use ${gmailInput} as your Gmail for future authentication?`)) {
                         return;
                     }
-
-                    const verifiedPhone = normalizePhone(authenticatedUser.phoneNumber);
-                    const approvedPhone = getApprovedPhone(matchedMember);
-                    if (!approvedPhone || verifiedPhone !== approvedPhone) {
-                        errorMsg.textContent = "Phone authentication failed. Use the WhatsApp number registered for this member.";
-                        errorMsg.style.display = 'block';
-                        return;
-                    }
-
-                    groupData.member_phones[matchedMember.id] = verifiedPhone;
-                } else {
-                    if (!authenticatedUser?.email) {
-                        errorMsg.textContent = "Please sign in with Google first.";
-                        errorMsg.style.display = 'block';
-                        return;
-                    }
-
-                    const verifiedEmail = normalizeEmail(authenticatedUser.email);
-                    const savedEmail = groupData.member_emails[matchedMember.id];
-                    if (savedEmail && savedEmail !== verifiedEmail) {
-                        errorMsg.textContent = "Google authentication failed. Use the same Google account entered first.";
-                        errorMsg.style.display = 'block';
-                        return;
-                    }
-
-                    groupData.member_emails[matchedMember.id] = verifiedEmail;
+                    groupData.member_emails[matchedMember.id] = gmailInput;
                 }
 
                 saveWinnerState();
@@ -1754,7 +1528,6 @@
                 activeTab = 'user';
                 renderRoster();
                 renderWinnerState();
-                saveProtectedActivity('Logged in', { memberId: matchedMember.id });
             } else {
                 errorMsg.textContent = "Name not found in group roster. Try again.";
                 errorMsg.style.display = 'block';
@@ -1785,9 +1558,15 @@
         }
 
         function saveMonthlyParticipants() {
-            if (!isVijay(currentUser)) {
+            if (!isSuperAdmin(currentUser)) {
                 document.getElementById('admin-message').style.color = 'var(--error)';
-                document.getElementById('admin-message').textContent = 'Only Vijay can update monthly participants and chit amount.';
+                document.getElementById('admin-message').textContent = 'Only super admins can update monthly participants and chit amount.';
+                return;
+            }
+
+            if (!adminEditMode) {
+                document.getElementById('admin-message').style.color = 'var(--error)';
+                document.getElementById('admin-message').textContent = 'Click Edit Monthly Entry before saving changes.';
                 return;
             }
 
@@ -1821,6 +1600,7 @@
             groupData.members = participants;
             availablePool = [];
             recordVijayTask('Updated monthly participants and chit amount');
+            adminEditMode = false;
 
             saveWinnerState();
             renderRoster();
@@ -1852,7 +1632,6 @@
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             });
-            saveProtectedFeedback(feedbackData.feedback[feedbackData.feedback.length - 1]);
             saveFeedbackData();
             feedbackInput.value = '';
             feedbackMessage.style.color = 'var(--accent)';
@@ -1960,11 +1739,6 @@
             });
             availablePool = [];
             saveWinnerState();
-            saveProtectedActivity('Updated lottery participation', {
-                month: groupData.monthly_lot.month,
-                response: wantsToJoin ? 'yes' : 'no',
-                changes: responses[participant.id].changes
-            });
             renderWinnerState();
         }
 
@@ -2026,7 +1800,19 @@
             renderWinnerState();
         }
 
-        initializeFirebase();
+        Object.assign(window, {
+            checkEnter,
+            verifyUser,
+            logOut,
+            showTab,
+            confirmParticipation,
+            updateUserName,
+            submitFeedback,
+            pickWinner,
+            saveMonthlyParticipants,
+            startAdminEdit,
+            cancelAdminEdit
+        });
         loadWinnerState();
     </script>
 </body>

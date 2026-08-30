@@ -32,7 +32,6 @@ jobs:
         run: |
           mkdir _site
           cp index.html feedback.json _site/
-          cp firebase-config.json _site/ 2>/dev/null || true
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v3

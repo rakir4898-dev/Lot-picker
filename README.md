@@ -1,18 +1,13 @@
 # Lot-picker
 final end winner
 
-## Authentication setup
+## Static Gmail authentication
 
-This app uses Firebase Authentication for both Google sign-in and WhatsApp-style phone OTP. Users choose the method every time they log in.
+This app uses static browser-based Gmail verification.
 
-1. Create a Firebase project.
-2. Enable Authentication > Sign-in method > Google and Phone.
-3. Add `rakir4898-dev.github.io` to Authentication > Settings > Authorized domains.
-4. Enable Firestore Database.
-5. Copy `firebase-config.sample.json` to `firebase-config.json` and fill in the Firebase web app config.
-6. Deploy the Firestore rules from `firestore.rules`.
-7. Commit and push `firebase-config.json` so GitHub Pages can load it.
+1. User enters a roster name and Gmail address.
+2. Name matching supports partial matches.
+3. On the first successful login, the Gmail is saved for that roster member in browser storage.
+4. On later logins, the same roster member must use the same Gmail address.
 
-`firebase-config.json` is public browser configuration. Access control for login history, app activity, and feedback must be enforced by Firestore security rules, not by hiding client-side files. WhatsApp group membership cannot be verified directly by WhatsApp; the app treats the approved `+91` phone-number roster as the WhatsApp group access list. Google login stores the first Google email used for each roster member and requires the same email on later Google logins.
-
-Google sign-in supports both popup and redirect flows. Use redirect sign-in if the browser blocks popups.
+This is a static GitHub Pages app, so Gmail verification is not OAuth and is not shared across browsers/devices unless a backend is added later.
