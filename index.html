@@ -464,6 +464,8 @@
 
             <div class="tab-buttons">
                 <button class="tab-button active" id="user-tab-button" onclick="showTab('user')"><i class="fa-solid fa-user" aria-hidden="true"></i>User</button>
+                <button class="tab-button" id="winners-tab-button" onclick="showTab('winners')"><i class="fa-solid fa-trophy" aria-hidden="true"></i>Current Winners</button>
+                <button class="tab-button" id="super-tab-button" onclick="showTab('super')"><i class="fa-solid fa-users" aria-hidden="true"></i>Super Participation</button>
                 <button class="tab-button" id="admin-tab-button" onclick="showTab('admin')"><i class="fa-solid fa-user-shield" aria-hidden="true"></i>Super Admin</button>
                 <button class="tab-button" id="dashboard-tab-button" onclick="showTab('dashboard')"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i>Dashboard</button>
             </div>
@@ -559,6 +561,7 @@
                 <button id="pick-chit-winner-button" onclick="pickWinner('chit')"><i class="fa-solid fa-ticket" aria-hidden="true"></i>Pick Chit Winner</button>
             </div>
 
+            <div class="tab-panel" id="super-tab-panel">
             <div class="status" id="status-text">Remaining in pool: 6/6</div>
 
             <div style="margin-top: 20px;">
@@ -575,6 +578,7 @@
                     <tbody id="eligible-table-body"></tbody>
                 </table>
             </div>
+            </div>
 
             <div style="margin-top: 20px;">
                 <h2 style="font-size: 1rem; text-align: left; color: var(--text-muted);"><i class="fa-solid fa-address-book" aria-hidden="true"></i>Master Members Roster</h2>
@@ -590,7 +594,7 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card tab-panel" id="winners-tab-panel">
             <h2><i class="fa-solid fa-trophy" aria-hidden="true"></i>Current Winners</h2>
             <div class="winner-summary">
                 <div class="winner-summary-card">
@@ -1211,7 +1215,7 @@
 
         function showTab(tabName) {
             activeTab = tabName;
-            ['user', 'admin', 'dashboard'].forEach(name => {
+            ['user', 'winners', 'super', 'admin', 'dashboard'].forEach(name => {
                 document.getElementById(`${name}-tab-panel`).classList.toggle('active', name === tabName);
                 document.getElementById(`${name}-tab-button`).classList.toggle('active', name === tabName);
             });
@@ -1224,6 +1228,7 @@
             adminButton.style.display = currentUser && isSuperAdmin(currentUser) ? 'block' : 'none';
             dashboardButton.style.display = currentUser && isPrabu(currentUser) ? 'block' : 'none';
 
+            if (!['user', 'winners', 'super', 'admin', 'dashboard'].includes(activeTab)) activeTab = 'user';
             if (activeTab === 'admin' && adminButton.style.display === 'none') activeTab = 'user';
             if (activeTab === 'dashboard' && dashboardButton.style.display === 'none') activeTab = 'user';
             showTab(activeTab);
