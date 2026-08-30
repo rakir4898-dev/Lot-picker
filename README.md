@@ -14,3 +14,5 @@ This app uses Firebase Authentication for both Google sign-in and WhatsApp-style
 7. Commit and push `firebase-config.json` so GitHub Pages can load it.
 
 `firebase-config.json` is public browser configuration. Access control for login history, app activity, and feedback must be enforced by Firestore security rules, not by hiding client-side files. WhatsApp group membership cannot be verified directly by WhatsApp; the app treats the approved `+91` phone-number roster as the WhatsApp group access list. Google login stores the first Google email used for each roster member and requires the same email on later Google logins.
+
+Google sign-in supports both popup and redirect flows. Use redirect sign-in if the browser blocks popups.

@@ -456,6 +456,7 @@
             </div>
             <div id="google-auth-panel" style="display: none;">
                 <button id="google-login-button" onclick="signInWithGoogle()"><i class="fa-brands fa-google" aria-hidden="true"></i>Sign in with Google</button>
+                <button id="google-redirect-button" onclick="signInWithGoogleRedirect()"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>Use Redirect Sign-In</button>
             </div>
             <div id="phone-auth-panel">
             <input type="tel" id="phone-input" placeholder="10-digit WhatsApp number" onkeypress="checkEnter(event)">
@@ -474,6 +475,7 @@
         <div class="card">
             <h1><i class="fa-solid fa-shuffle" aria-hidden="true"></i>SEO Group Selector</h1>
             <p style="font-size: 0.85rem; color: var(--text-muted); text-align: center;" id="welcome-user-text">Welcome!</p>
+            <button onclick="logOut()"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>Sign Out</button>
 
             <div class="tab-buttons">
                 <button class="tab-button active" id="user-tab-button" onclick="showTab('user')"><i class="fa-solid fa-user" aria-hidden="true"></i>User</button>
@@ -745,6 +747,7 @@
                 firebaseAuth = authModule.getAuth(app);
                 firestoreDb = firestoreModule.getFirestore(app);
                 firebaseApi = { ...authModule, ...firestoreModule };
+                await checkRedirectResult();
 
                 authModule.onAuthStateChanged(firebaseAuth, user => {
                     authenticatedUser = user;
@@ -778,12 +781,68 @@
 
             try {
                 const provider = new firebaseApi.GoogleAuthProvider();
+                provider.addScope('profile');
+                provider.addScope('email');
                 const result = await firebaseApi.signInWithPopup(firebaseAuth, provider);
                 authenticatedUser = result.user;
                 setAuthStatus(`Signed in with ${authenticatedUser.email}`);
             } catch (error) {
-                setAuthStatus('Google sign-in failed. Try again.', true);
+                setAuthStatus('Google popup sign-in failed. Try redirect sign-in.', true);
                 console.warn('Google sign-in failed', error);
+            }
+        }
+
+        async function signInWithGoogleRedirect() {
+            if (!firebaseAuth || !firebaseApi) {
+                setAuthStatus('Google redirect sign-in requires firebase-config.json setup.', true);
+                return;
+            }
+
+            try {
+                const provider = new firebaseApi.GoogleAuthProvider();
+                provider.addScope('profile');
+                provider.addScope('email');
+                await firebaseApi.signInWithRedirect(firebaseAuth, provider);
+            } catch (error) {
+                setAuthStatus('Google redirect sign-in failed.', true);
+                console.warn('Google redirect sign-in failed', error);
+            }
+        }
+
+        async function checkRedirectResult() {
+            if (!firebaseAuth || !firebaseApi) return;
+
+            try {
+                const result = await firebaseApi.getRedirectResult(firebaseAuth);
+                if (result?.user) {
+                    authenticatedUser = result.user;
+                    setAuthStatus(`Signed in with ${authenticatedUser.email}`);
+                }
+            } catch (error) {
+                setAuthStatus('Google redirect result failed.', true);
+                console.warn('Google redirect result failed', error);
+            }
+        }
+
+        async function logOut() {
+            if (!firebaseAuth || !firebaseApi) {
+                document.getElementById('auth-modal').style.display = 'flex';
+                document.getElementById('main-dashboard').style.display = 'none';
+                authenticatedUser = null;
+                currentUser = null;
+                return;
+            }
+
+            try {
+                await firebaseApi.signOut(firebaseAuth);
+                authenticatedUser = null;
+                currentUser = null;
+                document.getElementById('auth-modal').style.display = 'flex';
+                document.getElementById('main-dashboard').style.display = 'none';
+                setAuthStatus('Signed out successfully.');
+            } catch (error) {
+                setAuthStatus('Sign-out failed.', true);
+                console.warn('Sign-out failed', error);
             }
         }
 
